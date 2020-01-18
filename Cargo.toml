@@ -13,4 +13,5 @@ edition = "2018"
 [dependencies]
 #pyo3 = { version = "0.8.5", features = ["extension-module"] }
 pyo3 = "*"
+#numpy = "*" #fails to build on nightly 2020-01-16
 mpi = "*"

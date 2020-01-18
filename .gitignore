@@ -1,4 +1,7 @@
 /target
 /examples
+Cargo.lock
 
+__pycache__
+.vscode
 .venv*
