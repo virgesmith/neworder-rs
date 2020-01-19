@@ -1,14 +1,12 @@
+#[macro_use]
+extern crate lazy_static;
 
 use pyo3::prelude::*;
-use pyo3::types::IntoPyDict;
-
 
 use pyo3::{Python, PyResult};
-use pyo3::types::{PyModule, PyDict};
-use mpi::topology::Communicator;
-use pyo3::wrap_pyfunction;
 
-//use crate::neworder;
+mod module;
+mod environment;
 
 fn append_model_paths(paths: &[String]) {
 
@@ -63,20 +61,19 @@ fn main() -> Result<(), ()> {
 
 fn run<'py>(py: Python<'py>) -> PyResult<()> {
 
-  let universe = mpi::initialize().unwrap();
-  let world = universe.world();
-  let size = world.size();
-  let rank = world.rank();
+  // TODO MPI not initialised? 
+  module::init_embedded(py)?;
 
-  println!("MPI {}/{}", rank, size);
+  module::log(&format!("initialised indep={} seed={}", environment::indep(), environment::seed()));
+  module::log(&format!("PYTHONPATH={}", std::env::var("PYTHONPATH").unwrap()));
   
-  println!("PYTHONPATH={}", std::env::var("PYTHONPATH").unwrap());
-
-  init_embedded_module(py)?;
-
   let test = py.import("testmodule")?;
-  // println!("{}", py.eval("dir(testmodule)", None, None)?);
-  println!("{}", test.call0("func")?);
+  //module::log(&format!("{}", py.eval("dir(testmodule)", None, None)?));
+  //module::log(&test.call0("func")?.str()?.to_string()?);
+  module::log(&format!("{}", test.call0("func")?));
+
+  //let args = pyo3::types::PyTuple::new(py, &[3.14;1]/*:impl IntoIterator<Item = T, IntoIter = U>*/);
+  //println!("{}", test.call1("str", args)?);
 
   // let locals = [("testmodule", py.import("testmodule")?)].into_py_dict(py);
   // py.eval("print(dir(testmodule))", None, Some(&locals))?;
@@ -93,29 +90,3 @@ fn run<'py>(py: Python<'py>) -> PyResult<()> {
 }
 
 
-#[pyfunction]
-fn foo(i: i32) -> i32 {
-  i + 5
-}
-
-//#[pymodule]
-fn init_embedded_module(py: Python) -> PyResult<()> {
-  let no = PyModule::new(py, "neworder")?;
-  add_module(py, no);
-  no.add("x", 42)?;
-
-  no.add_wrapped(wrap_pyfunction!(foo))?;
-  Ok(())
-}
-
-fn add_module(py: Python, module: &PyModule) {
-  py.import("sys")
-      .expect("failed to import python sys module")
-      .dict()
-      .get_item("modules")
-      .expect("failed to get python modules dictionary")
-      .downcast_mut::<PyDict>()
-      .expect("failed to turn sys.modules into a PyDict")
-      .set_item(module.name().expect("module missing name"), module)
-      .expect("failed to inject module");
-}
