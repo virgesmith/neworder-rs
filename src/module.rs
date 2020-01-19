@@ -11,20 +11,20 @@ use crate::environment;
 
 
 #[pyfunction]
-fn name() -> &'static str {
-  "neworder"
+pub fn name() -> &'static str {
+  "neworder.rs"
 }
 
 #[pyfunction]
 #[name="log"]
 pub fn log_py(py: Python, x: PyObject) -> PyResult<()> {
   let a = x.as_ref(py);
-  log_impl("py", environment::mpi().0, environment::mpi().1, &a.str()?.to_string()?);
+  log_impl("py", environment::rank(), environment::size(), &a.str()?.to_string()?);
   Ok(())
 }
 
 pub fn log(msg: &str) {
-  log_impl("no.rs", environment::mpi().0, environment::mpi().1, msg);
+  log_impl("no", environment::rank(), environment::size(), msg);
 }
 
 fn log_impl(ctx: &'static str, rank: i32, size: i32, msg: &str) {
@@ -45,12 +45,12 @@ pub fn init_embedded(py: Python) -> PyResult<()> {
 
 fn add_module(py: Python, module: &PyModule) {
   py.import("sys")
-      .expect("failed to import python sys module")
-      .dict()
-      .get_item("modules")
-      .expect("failed to get python modules dictionary")
-      .downcast_mut::<PyDict>()
-      .expect("failed to turn sys.modules into a PyDict")
-      .set_item(module.name().expect("module missing name"), module)
-      .expect("failed to inject module");
+    .expect("failed to import python sys module")
+    .dict()
+    .get_item("modules")
+    .expect("failed to get python modules dictionary")
+    .downcast_mut::<PyDict>()
+    .expect("failed to turn sys.modules into a PyDict")
+    .set_item(module.name().expect("module missing name"), module)
+    .expect("failed to inject module");
 }

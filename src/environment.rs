@@ -1,65 +1,49 @@
 
-//use std::sync::Mutex;
 use mpi::topology::Communicator;
 
-// lazy_static! {
-//   static ref ENV: Mutex<Environment> = Mutex::new(Environment::new());
-// }
-
-// static mut g_init: bool = false;
-// static mut g_rank: u32 = 0;
-// static mut g_size: u32 = 1;
-
-static /*mut*/ g_indep: bool = false;
-static /*mut*/ g_seed: i64 = 19937;
-
-// struct Environment {
-
-//   // flag to check whether init has been called
-//   init : bool,
-
-//   // RNG sequence index
-//   //size_t m_seqno; use python version for now
-//   //np::array m_sequence;
-
-//   // MPI rank/size
-//   rank: u32,
-//   size: u32,
-//   // set to false to make all processes use the same seed
-//   indep: bool,
-
-//   // seed not directly visible to python
-//   seed: i64,
-
-//   // TODO work out why this segfaults if the dtor is called (even on exit)
-//   //m_self: &PyModule
-//   // thread/process-safe seeding strategy deferred until config loaded
-//   // std::mt19937 m_prng;
-
-//   // no::Timeline m_timeline;
-// }
-
-// impl Environment {
-//   fn new() -> Environment {
-//     Environment{ init: false, rank: 0, size: 1, indep: false, seed: 19937 }
-//   }
-// }
-
-pub fn seed() -> &'static i64 {
-  &g_seed
+struct MPIInfo {
+  rank: i32,
+  size: i32
 }
 
-pub fn indep() -> &'static bool {
-  &g_indep
-}
-
-pub fn mpi() -> (i32, i32) {
-  match mpi::initialize() {
-    Some(u) => (u.world().rank(), u.world().size()), 
-    None => (-1, -1)
+impl MPIInfo {
+  fn new() -> MPIInfo {
+    let u = mpi::initialize().unwrap();
+    let w = u.world();
+    MPIInfo{ rank: w.rank(), size: w.size()}
   }
 }
 
+lazy_static! {
+  static ref MPI: MPIInfo = { MPIInfo::new() };
+
+  //static ref BASE_SEED: i64 = { 19937 };
+}
+
+// static mut g_init: bool = false;
+
+static /*mut*/ INDEP: bool = false;
+static /*mut*/ BASE_SEED: i64 = 19937;
+
+pub fn seed() -> i64 {
+  if INDEP {
+    BASE_SEED * (size() as i64) + (rank() as i64)
+  } else {
+    BASE_SEED
+  }
+}
+
+pub fn indep() -> &'static bool {
+  &INDEP
+}
+
+pub fn rank() -> i32 {
+  MPI.rank
+}
+
+pub fn size() -> i32 {
+  MPI.size
+}
 
 // struct NEWORDER_EXPORT Environment
 // {

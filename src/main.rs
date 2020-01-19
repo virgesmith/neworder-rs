@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate lazy_static;
 
-use pyo3::prelude::*;
+//use pyo3::prelude::*;
 
 use pyo3::{Python, PyResult};
 
@@ -61,13 +61,14 @@ fn main() -> Result<(), ()> {
 
 fn run<'py>(py: Python<'py>) -> PyResult<()> {
 
-  // TODO MPI not initialised? 
   module::init_embedded(py)?;
 
-  module::log(&format!("initialised indep={} seed={}", environment::indep(), environment::seed()));
+  let pym = py.import("sys")?.get("version")?.to_string().replace("\n", "");
+
+  module::log(&format!("{} initialised: python={} indep={} seed={}", module::name(), &pym, environment::indep(), environment::seed()));
   module::log(&format!("PYTHONPATH={}", std::env::var("PYTHONPATH").unwrap()));
   
-  let test = py.import("testmodule")?;
+  let test = py.import("config")?;
   //module::log(&format!("{}", py.eval("dir(testmodule)", None, None)?));
   //module::log(&test.call0("func")?.str()?.to_string()?);
   module::log(&format!("{}", test.call0("func")?));
