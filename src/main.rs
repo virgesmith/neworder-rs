@@ -3,10 +3,12 @@ extern crate lazy_static;
 
 //use pyo3::prelude::*;
 
-use pyo3::{Python, PyResult};
+use pyo3::{Python, PyResult, PyObject};
 
-mod module;
-mod environment;
+use pyo3::types::{PyString, PyDict, PyList, PyTuple};
+
+mod neworder;
+mod env;
 
 fn append_model_paths(paths: &[String]) {
 
@@ -61,20 +63,38 @@ fn main() -> Result<(), ()> {
 
 fn run<'py>(py: Python<'py>) -> PyResult<()> {
 
-  module::init_embedded(py)?;
+  let no = neworder::init_embedded(py)?;
 
   let pym = py.import("sys")?.get("version")?.to_string().replace("\n", "");
 
-  module::log(&format!("{} initialised: python={} indep={} seed={}", module::name(), &pym, environment::indep(), environment::seed()));
-  module::log(&format!("PYTHONPATH={}", std::env::var("PYTHONPATH").unwrap()));
+  neworder::log(&format!("{} initialised: python={} indep={} seed={}", neworder::name(), &pym, env::indep(), env::seed()));
+  neworder::log(&format!("PYTHONPATH={}", std::env::var("PYTHONPATH").unwrap()));
   
-  let test = py.import("config")?;
-  //module::log(&format!("{}", py.eval("dir(testmodule)", None, None)?));
-  //module::log(&test.call0("func")?.str()?.to_string()?);
-  module::log(&format!("{}", test.call0("func")?));
+  let config = py.import("config")?;
+  //neworder::log(&format!("{}", py.eval("dir(testmodule)", None, None)?));
+  //neworder::log(&test.call0("func")?.str()?.to_string()?);
+  neworder::log(&format!("{}", config.call0("func")?));
 
-  //let args = pyo3::types::PyTuple::new(py, &[3.14;1]/*:impl IntoIterator<Item = T, IntoIter = U>*/);
-  //println!("{}", test.call1("str", args)?);
+  let initialisations: &PyDict = no.get("initialisations")?.downcast_ref()?;
+
+  for (k, v) in initialisations.iter() {
+    neworder::log(&format!("{}:", k));
+    let d: &PyDict = v.downcast_ref()?;
+    for (k2, v2) in d {
+      neworder::log(&format!("  {}: {}", k2, v2));
+    }
+    let modulename = &d.get_item("module").unwrap().downcast_ref::<PyString>()?.to_string()?;
+    let classname = &d.get_item("class_").unwrap().downcast_ref::<PyString>()?.to_string()?;
+    let args: &PyList = d.get_item("parameters").unwrap().downcast_ref()?;
+    // TODO TypeError
+    //let args: &PyTuple = d.get_item("parameters").unwrap().downcast_ref()?;
+
+
+    let module = py.import(&modulename)?;
+    // TODO how to get a PyObject from a PyAny?
+    // let class: &PyObject = module.get(classname)? .to_object(py);//.downcast_ref()?;
+    // let object = class.call(py, args, None)?;
+  }  
 
   // let locals = [("testmodule", py.import("testmodule")?)].into_py_dict(py);
   // py.eval("print(dir(testmodule))", None, Some(&locals))?;

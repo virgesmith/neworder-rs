@@ -7,7 +7,7 @@ use pyo3::wrap_pyfunction;
 
 use pyo3::types::{PyModule, PyDict};
 
-use crate::environment;
+use crate::env;
 
 
 #[pyfunction]
@@ -19,12 +19,12 @@ pub fn name() -> &'static str {
 #[name="log"]
 pub fn log_py(py: Python, x: PyObject) -> PyResult<()> {
   let a = x.as_ref(py);
-  log_impl("py", environment::rank(), environment::size(), &a.str()?.to_string()?);
+  log_impl("py", env::rank(), env::size(), &a.str()?.to_string()?);
   Ok(())
 }
 
 pub fn log(msg: &str) {
-  log_impl("no", environment::rank(), environment::size(), msg);
+  log_impl("no", env::rank(), env::size(), msg);
 }
 
 fn log_impl(ctx: &'static str, rank: i32, size: i32, msg: &str) {
@@ -32,7 +32,7 @@ fn log_impl(ctx: &'static str, rank: i32, size: i32, msg: &str) {
 }
 
 
-pub fn init_embedded(py: Python) -> PyResult<()> {
+pub fn init_embedded(py: Python) -> PyResult<&PyModule> {
   let no = PyModule::new(py, "neworder")?;
   add_module(py, no);
   // no.add("x", 42)?;
@@ -40,7 +40,7 @@ pub fn init_embedded(py: Python) -> PyResult<()> {
   no.add_wrapped(wrap_pyfunction!(name))?;
   no.add_wrapped(wrap_pyfunction!(log_py))?;
 
-  Ok(())
+  Ok(no)
 }
 
 fn add_module(py: Python, module: &PyModule) {
