@@ -1,14 +1,15 @@
 #[macro_use]
 extern crate lazy_static;
 
-//use pyo3::prelude::*;
+use pyo3::prelude::*;
 
 use pyo3::{Python, PyResult, PyObject};
 
-use pyo3::types::{PyString, PyDict, PyList, PyTuple};
+use pyo3::types::*; //{PyString, PyDict, PyList, PyTuple, PyAny};
 
 mod neworder;
 mod env;
+mod timeline;
 
 fn append_model_paths(paths: &[String]) {
 
@@ -85,18 +86,24 @@ fn run<'py>(py: Python<'py>) -> PyResult<()> {
     }
     let modulename = &d.get_item("module").unwrap().downcast_ref::<PyString>()?.to_string()?;
     let classname = &d.get_item("class_").unwrap().downcast_ref::<PyString>()?.to_string()?;
-    let args: &PyList = d.get_item("parameters").unwrap().downcast_ref()?;
-    // TODO TypeError
-    //let args: &PyTuple = d.get_item("parameters").unwrap().downcast_ref()?;
-
+    let args: &PyTuple = d.get_item("args").unwrap().downcast_ref()?;
+    let kwargs: &PyDict = d.get_item("kwargs").unwrap().downcast_ref()?;
 
     let module = py.import(&modulename)?;
-    // TODO how to get a PyObject from a PyAny?
-    // let class: &PyObject = module.get(classname)? .to_object(py);//.downcast_ref()?;
-    // let object = class.call(py, args, None)?;
-  }  
 
-  // let locals = [("testmodule", py.import("testmodule")?)].into_py_dict(py);
+  
+    // TODO how to get a PyObject from a PyAny?
+    //let class = &module.get(classname)?.as_method_def();
+    // let object = class.call(py, args, kwargs)?;
+
+    //let obj = module.as_ref(); //.call(classname, None, None);
+  }  
+  // let locals = [("greet", py.import("greet")?)].into_py_dict(py);
+  // //let result = py.eval("dir(greeter)", Some(&locals), None)?;
+  // let result = py.eval("greet.Greeter(\"rs\")", Some(&locals), None)?;
+  // neworder::log(&format!("{}", result));
+
+  //let locals = [("testmodule", py.import("testmodule")?)].into_py_dict(py);
   // py.eval("print(dir(testmodule))", None, Some(&locals))?;
   // let res = py.eval("testmodule.func()", None, Some(&locals))?;
   // println!("{}", res);
