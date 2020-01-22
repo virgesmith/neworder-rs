@@ -18,6 +18,6 @@ def func():
 #   import neworder
 #   neworder.greeter = greet.Greet()
 no.initialisations = {
-  "greeter": { "module": "greet", "class_": "Greet", "parameters": [] }
+  "greeter": { "module": "greet", "class_": "Greet", "args": () }
 }
 

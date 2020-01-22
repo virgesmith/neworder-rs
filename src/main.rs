@@ -86,15 +86,41 @@ fn run<'py>(py: Python<'py>) -> PyResult<()> {
     }
     let modulename = &d.get_item("module").unwrap().downcast_ref::<PyString>()?.to_string()?;
     let classname = &d.get_item("class_").unwrap().downcast_ref::<PyString>()?.to_string()?;
-    let args: &PyTuple = d.get_item("args").unwrap().downcast_ref()?;
-    let kwargs: &PyDict = d.get_item("kwargs").unwrap().downcast_ref()?;
+    let args/*: &PyTuple*/ = d.get_item("args").unwrap().downcast_ref::<PyTuple>()?;
+    let kwargs = match d.get_item("kwargs") {
+      Some(d) => Some(d.downcast_ref::<PyDict>()?),
+      None => None
+    };
 
     let module = py.import(&modulename)?;
+    // let module = PyModule::from_code(py, 
+    // "
+    // class Greet():
+    //   def __init__(self, a):
+    //     print('greet:', a)
+    // ", 
+    // "from_code.py", "from_code")?;
+
+    // let ctor = module.get(classname).expect("?").to_object(py);
+
+    // let result = ctor.call1(py, (1));
 
   
-    // TODO how to get a PyObject from a PyAny?
-    //let class = &module.get(classname)?.as_method_def();
-    // let object = class.call(py, args, kwargs)?;
+    // Get the class
+    let class = &module.get(classname)?.to_object(py);
+    // Call the ctor
+    let object = &class.call(py, args, kwargs)?;
+
+    // Call the __call__/operator() method
+    let res = object.call(py, (), None)?; //.to_string()?;
+    neworder::log_py(py, res)?; //&format!("result={:?}", res ));
+
+    // Get the method
+    let method = object.getattr(py, "get_name")?;
+    // Call it
+    let res = method.call0(py)?; //.as_ref();
+    // Display result
+    neworder::log_py(py, res)?;
 
     //let obj = module.as_ref(); //.call(classname, None, None);
   }  
