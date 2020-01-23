@@ -11,5 +11,5 @@ sudo: required
 addons:
   apt:
     packages:
-      - autoconf autogen libtool texinfo
+      - autoconf autogen libtool texinfo mpich
 
