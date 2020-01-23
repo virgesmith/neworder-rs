@@ -1,3 +1,5 @@
+[![Travis Build Status](https://travis-ci.org/virgesmith/neworder-rs.svg?branch=master)](https://travis-ci.org/virgesmith/neworder-rs)
+
 # neworder-rs
 
 An attempt at a rust implementation of my [neworder](https://github.com/virgesmith/neworder) embedded python microsimulation package, which was implemented in C++.
