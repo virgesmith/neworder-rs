@@ -8,6 +8,7 @@ use pyo3::wrap_pyfunction;
 use pyo3::types::{PyModule, PyDict};
 
 use crate::env;
+use crate::timeline::Timeline;
 
 
 #[pyfunction]
@@ -31,14 +32,39 @@ fn log_impl(ctx: &'static str, rank: i32, size: i32, msg: &str) {
   println!("[{} {}/{}] {}", ctx, rank, size, msg);
 }
 
+#[pyfunction]
+fn never() -> f64 {
+  Timeline::NEVER
+}
+
+#[pyfunction]
+fn distant_past() -> f64 {
+  Timeline::DISTANT_PAST
+}
+
+#[pyfunction]
+fn far_future() -> f64 {
+  Timeline::FAR_FUTURE
+}
+
+
 
 pub fn init_embedded(py: Python) -> PyResult<&PyModule> {
   let no = PyModule::new(py, "neworder")?;
   add_module(py, no);
-  // no.add("x", 42)?;
+  // use the module to store global variables
+  no.add("rank", env::rank())?;
+  no.add("size", env::size())?;
+  no.add("indep", env::indep())?;
+  no.add("seed", env::seed())?;
 
   no.add_wrapped(wrap_pyfunction!(name))?;
   no.add_wrapped(wrap_pyfunction!(log_py))?;
+
+  // time-related
+  no.add_wrapped(wrap_pyfunction!(never))?;
+  no.add_wrapped(wrap_pyfunction!(distant_past))?;
+  no.add_wrapped(wrap_pyfunction!(far_future))?;
 
   Ok(no)
 }

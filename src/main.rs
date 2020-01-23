@@ -3,13 +3,16 @@ extern crate lazy_static;
 
 use pyo3::prelude::*;
 
-use pyo3::{Python, PyResult, PyObject};
+use pyo3::{Python, PyResult};
 
-use pyo3::types::*; //{PyString, PyDict, PyList, PyTuple, PyAny};
+use pyo3::types::*; 
 
 mod neworder;
 mod env;
 mod timeline;
+mod mpi;
+mod callback;
+mod test;
 
 fn append_model_paths(paths: &[String]) {
 
@@ -66,9 +69,9 @@ fn run<'py>(py: Python<'py>) -> PyResult<()> {
 
   let no = neworder::init_embedded(py)?;
 
-  let pym = py.import("sys")?.get("version")?.to_string().replace("\n", "");
+  let pyinfo = py.import("sys")?.get("version")?.to_string().replace("\n", "");
 
-  neworder::log(&format!("{} initialised: python={} indep={} seed={}", neworder::name(), &pym, env::indep(), env::seed()));
+  neworder::log(&format!("{} initialised: python={} indep={} seed={}", neworder::name(), &pyinfo, env::indep(), env::seed()));
   neworder::log(&format!("PYTHONPATH={}", std::env::var("PYTHONPATH").unwrap()));
   
   let config = py.import("config")?;
@@ -81,39 +84,24 @@ fn run<'py>(py: Python<'py>) -> PyResult<()> {
   for (k, v) in initialisations.iter() {
     neworder::log(&format!("{}:", k));
     let d: &PyDict = v.downcast_ref()?;
-    for (k2, v2) in d {
-      neworder::log(&format!("  {}: {}", k2, v2));
-    }
+    // for (k2, v2) in d {
+    //   neworder::log(&format!("  {}: {}", k2, v2));
+    // }
     let modulename = &d.get_item("module").unwrap().downcast_ref::<PyString>()?.to_string()?;
     let classname = &d.get_item("class_").unwrap().downcast_ref::<PyString>()?.to_string()?;
-    let args/*: &PyTuple*/ = d.get_item("args").unwrap().downcast_ref::<PyTuple>()?;
+    let args = d.get_item("args").unwrap().downcast_ref::<PyTuple>()?;
     let kwargs = match d.get_item("kwargs") {
       Some(d) => Some(d.downcast_ref::<PyDict>()?),
       None => None
     };
 
+    // module is a PyModule
     let module = py.import(&modulename)?;
-    // let module = PyModule::from_code(py, 
-    // "
-    // class Greet():
-    //   def __init__(self, a):
-    //     print('greet:', a)
-    // ", 
-    // "from_code.py", "from_code")?;
-
-    // let ctor = module.get(classname).expect("?").to_object(py);
-
-    // let result = ctor.call1(py, (1));
-
   
-    // Get the class
+    // Get the class (a &PyObject)
     let class = &module.get(classname)?.to_object(py);
-    // Call the ctor
+    // Call the ctor, (result is a &PyObject)
     let object = &class.call(py, args, kwargs)?;
-
-    // Call the __call__/operator() method
-    let res = object.call(py, (), None)?; //.to_string()?;
-    neworder::log_py(py, res)?; //&format!("result={:?}", res ));
 
     // Get the method
     let method = object.getattr(py, "get_name")?;
@@ -122,23 +110,10 @@ fn run<'py>(py: Python<'py>) -> PyResult<()> {
     // Display result
     neworder::log_py(py, res)?;
 
-    //let obj = module.as_ref(); //.call(classname, None, None);
+    // Call the __call__/operator() method
+    let res = object.call(py, (), None)?; //.to_string()?;
+    neworder::log_py(py, res)?; //&format!("result={:?}", res ));
   }  
-  // let locals = [("greet", py.import("greet")?)].into_py_dict(py);
-  // //let result = py.eval("dir(greeter)", Some(&locals), None)?;
-  // let result = py.eval("greet.Greeter(\"rs\")", Some(&locals), None)?;
-  // neworder::log(&format!("{}", result));
-
-  //let locals = [("testmodule", py.import("testmodule")?)].into_py_dict(py);
-  // py.eval("print(dir(testmodule))", None, Some(&locals))?;
-  // let res = py.eval("testmodule.func()", None, Some(&locals))?;
-  // println!("{}", res);
-
-  //let neworder = wrap_pymodule!(neworder)(py);
-
-  //let locals = [("testmodule", py.import("testmodule")?), ("neworder", py.import("neworder")?)].into_py_dict(py);
-  // let res = py.eval("neworder.name()", None, Some(&locals))?;
-  // println!("{}", res);
 
   Ok(())
 }
