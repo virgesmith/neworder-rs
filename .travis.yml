@@ -5,5 +5,11 @@ rust:
 
 os:
   - linux
-  - osx
+#  - osx
+
+sudo: required
+addons:
+  apt:
+    packages:
+      - autoconf autogen libtool texinfo
 
