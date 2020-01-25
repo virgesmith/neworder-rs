@@ -6,7 +6,7 @@ rust:
 
 os:
   - linux
-#  - osx
+  - osx
 
 sudo: required
 addons:
@@ -15,3 +15,6 @@ addons:
       - ubuntu-toolchain-r-test
     packages:
       - autoconf autogen libtool texinfo mpich libmpich-dev
+
+script:
+  - mpirun -n 3 cargo test -- --nocapture
