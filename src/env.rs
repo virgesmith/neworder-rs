@@ -1,49 +1,120 @@
 
+use mpi;
 use mpi::topology::Communicator;
+use mpi::collective::Root;
 
-struct MPIInfo {
-  rank: i32,
-  size: i32
+use std::error::Error;
+
+// enum DistPolicy {
+//   ChainForward,
+//   ChainForwardWrapped
+// }
+
+struct MPIEnv {
+  _universe: mpi::environment::Universe,
+  world: mpi::topology::SystemCommunicator,
+  seed: i64,
+  indep: bool // TODO can this be removed
 }
 
-impl MPIInfo {
-  fn new() -> MPIInfo {
-    let u = mpi::initialize().unwrap();
-    let w = u.world();
-    MPIInfo{ rank: w.rank(), size: w.size()}
+const BASE_SEED: i64 = 19937;
+
+// generate a seed for each process
+fn genseed(rank: i32, size: i32, indep: bool) -> i64 {
+  if indep {
+    BASE_SEED * (size as i64) + (rank as i64)
+  } else {
+    BASE_SEED
   }
 }
 
+impl MPIEnv {
+  fn new(indep: bool) -> MPIEnv {
+    let u = mpi::initialize().unwrap();
+    let w = u.world();
+    let r = w.rank();
+    let s = w.size();
+    MPIEnv{ _universe: u, world: w, seed: genseed(r, s, indep), indep: indep }
+  }
+}
+
+// TODO this data may need to be stored in the python module
 lazy_static! {
-  static ref MPI: MPIInfo = { MPIInfo::new() };
+  static ref MPI_ENV: MPIEnv = { MPIEnv::new(true) };
 
   //static ref BASE_SEED: i64 = { 19937 };
 }
 
 // static mut g_init: bool = false;
 
-static /*mut*/ INDEP: bool = false;
-static /*mut*/ BASE_SEED: i64 = 19937;
+// static /*mut*/ INDEP: bool = false;
 
-pub fn seed() -> i64 {
-  if INDEP {
-    BASE_SEED * (size() as i64) + (rank() as i64)
-  } else {
-    BASE_SEED
-  }
-}
 
-pub fn indep() -> &'static bool {
-  &INDEP
+pub fn indep() -> bool {
+  MPI_ENV.indep
 }
 
 pub fn rank() -> i32 {
-  MPI.rank
+  MPI_ENV.world.rank()
 }
 
 pub fn size() -> i32 {
-  MPI.size
+  MPI_ENV.world.size()
 }
+
+pub fn seed() -> i64 {
+  MPI_ENV.seed
+}
+
+pub fn world() -> &'static mpi::topology::SystemCommunicator {
+  &MPI_ENV.world
+}
+
+// template<typename T>
+// T& sendrecv(T& data, no::mpi::DistPolicy dist_policy = no::mpi::DistPolicy::CHAIN_FWD_WRAPPED)
+pub fn rotate<T: mpi::datatype::Equivalence>(data: T) -> Result<T, Box<dyn Error>> {
+  
+  let rank = rank();
+  let size = size();
+
+  let (prev, next) = (world().process_at_rank((rank + size - 1) % size), 
+                      world().process_at_rank((rank + 1) % size));
+
+  let (data, _status) = mpi::point_to_point::send_receive(&data, &next, &prev);
+  // TODO match status check for error
+  Ok(data)
+}
+
+pub fn broadcast_from<T: mpi::datatype::Equivalence>(from: i32, data: &mut T) -> Result<(), Box<dyn Error>> {
+  let root_process = world().process_at_rank(from);  
+  root_process.broadcast_into(data);
+  Ok(())
+}
+
+// {
+// #ifdef NEWORDER_MPI
+//   no::Environment& env = no::getenv();
+//   int source, dest;
+//   // CHAIN_FWD_WRAPPED
+//   switch (dist_policy)
+//   {
+//   case CHAIN_FWD_WRAPPED:  
+//     dest = (env.rank() + 1) % env.size();
+//     source = (env.rank() - 1) % env.size();
+//     break;
+//   case CHAIN_FWD:
+//     dest = env.rank() == env.size() - 1 ?  MPI_PROC_NULL: env.rank() + 1;
+//     source = env.rank() == 0 ?  MPI_PROC_NULL: env.rank() - 1;
+//     break;
+//   default:
+//     throw std::runtime_error("invalid sendrecv distribution policy");
+//   }
+
+//   MPI_Sendrecv_replace(&data, 1, mpi_type_trait<T>::type, dest, 0, source, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+//   // TODO return a ref to data?
+// #endif
+//   return data;
+// }
 
 // struct NEWORDER_EXPORT Environment
 // {

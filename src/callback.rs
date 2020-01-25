@@ -17,8 +17,8 @@ pub struct Callback<'a> {
   locals: Option<&'a PyDict>
 }
 
-// pub type CallbackList = Vec<Callback>;
-// pub type CallbackDict = HashMap<String, Callback>;
+pub type CallbackList<'a> = Vec<Callback<'a>>;
+pub type CallbackDict<'a> = HashMap<String, Callback<'a>>;
 
 impl<'a> Callback<'a> {
   pub fn exec(code: String, globals: Option<&'a PyDict>, locals: Option<&'a PyDict>) -> Callback<'a> {

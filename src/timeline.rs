@@ -1,13 +1,13 @@
 
-use pyo3::prelude::*;
+//use pyo3::prelude::*;
 
 pub struct Timeline {
-  checkpoints: (f64),
+  checkpoints: Vec<f64>,
   steps: usize,
 }
 
 impl Timeline {
-  pub fn new(checkpoints: (f64), steps: usize) -> Timeline {
+  pub fn new(checkpoints: Vec<f64>, steps: usize) -> Timeline {
     Timeline {
       checkpoints: checkpoints,
       steps: steps,

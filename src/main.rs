@@ -10,7 +10,6 @@ use pyo3::types::*;
 mod neworder;
 mod env;
 mod timeline;
-mod mpi;
 mod callback;
 mod test;
 
