@@ -6,9 +6,8 @@ rust:
 
 os:
   - linux
-  - osx
+#  - osx
 
-sudo: required
 addons:
   apt:
     sources:

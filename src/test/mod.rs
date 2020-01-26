@@ -154,7 +154,8 @@ mod test {
 
     //env::sendrecv("const char*").unwrap();
     // //CHECK(send_recv("const char*", env));
-    // CHECK(send_recv("std::string"_s, env));
+    //send0_recv1(String::from("String"));
+    // //CHECK(send_recv("std::string"_s, env));
 
     let mut i = match env::rank() {
       0 => 12345,
@@ -164,16 +165,22 @@ mod test {
     // should now be 12345 on all 
     assert_eq!(i, 12345);
 
-    // std::string s = "env.rank()=%%"_s % env.rank();
-    // // will set i to 0 for all procs
-    // //no::log("proc %% i=%%"_s % env.rank() % s);
-    // no::mpi::broadcast(s,0);
-    // //no::log("proc %% i=%%"_s % env.rank() % s);
-    // CHECK(s == "env.rank()=0");
+    // how to test this?
+    env::sync();
 
-    // no::mpi::sync();
+    let x = 10 * env::rank() + env::size();
 
-    // x = 10.0 * env.rank() + env.size();
+    let a = match env::gather_into(0, &x) {
+      Some(a) => {
+        assert_eq!(env::rank(), 0);
+        assert!(a.iter().enumerate().all(|(r, &x)|  x == 10 * (r as i32) + env::size()));
+      },
+      None => () 
+    };
+
+    // TODO gather
+    // need an env::sync?
+    
 
     // std::vector<double> g(env.size(), -1.0);
     // no::mpi::gather(x, g, 0);

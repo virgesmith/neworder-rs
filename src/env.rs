@@ -1,6 +1,7 @@
 
 use mpi;
 use mpi::topology::Communicator;
+use mpi::collective::CommunicatorCollectives;
 use mpi::collective::Root;
 
 use std::error::Error;
@@ -9,6 +10,8 @@ use std::error::Error;
 //   ChainForward,
 //   ChainForwardWrapped
 // }
+
+use crate::neworder as no;
 
 struct MPIEnv {
   _universe: mpi::environment::Universe,
@@ -90,6 +93,45 @@ pub fn broadcast_from<T: mpi::datatype::Equivalence>(from: i32, data: &mut T) ->
   root_process.broadcast_into(data);
   Ok(())
 }
+
+// pub fn scatter_from<T: mpi::datatype::Equivalence>(from: i32, data: &Vec<T>) -> Result<T, Box<dyn Error>> { 
+//   let x: T;
+//   Ok(x)
+// }
+
+// Returns an Option containing an array in rank() == to
+pub fn gather_into<T: mpi::datatype::Equivalence>(to: i32, data: &T) -> Option<Vec<T>> { 
+
+  let dst = world().process_at_rank(to);
+
+  match rank() == to {
+    true => {
+      let mut a = Vec::with_capacity(size() as usize);
+      dst.gather_into_root(data, &mut a[..]);
+      Some(a)
+    },
+    false => { 
+      dst.gather_into(data);
+      None
+    }
+  }
+    // r if r == to => { 
+    //   let mut a = Vec::with_capacity(size() as usize);
+    //   //a[rank() as usize] = data;
+    //   mpi::
+    //   Some(a)
+    // },
+    // _ => None
+}
+
+
+pub fn sync() {
+  no::log("waiting...");
+  world().barrier();
+  no::log("...resuming");
+}
+
+//pub fn gather
 
 // {
 // #ifdef NEWORDER_MPI
