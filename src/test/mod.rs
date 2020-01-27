@@ -13,10 +13,11 @@ mod test {
   use pyo3::{Python};//, PyResult};
   use pyo3::types::*; 
 
-  //use mpi::point_to_point as p2p;
+  use mpi::point_to_point as p2p;
   use mpi::point_to_point::{Source, Destination};
-  use mpi::topology::Communicator;
-  //use mpi::collective::CommunicatorCollectives;
+  use mpi::topology::Rank;
+  use mpi::traits::*;
+  use mpi::collective::CommunicatorCollectives;
 
   #[test]
   fn timeline_statics() {
@@ -109,16 +110,33 @@ mod test {
 
     if env::rank() == 0 {
       //p2p::send(x, 1);
+      // NB sends ***TO** 1
       env::world().process_at_rank(1).send(&x);
       //no::log(&format!("sent {:?} to 1", x));
     }
     if env::rank() == 1 {
+      // NB receives ***FROM** 0
       let (y, _): (T, _) = env::world().process_at_rank(0).receive();
-      //no::log(&format!("got {:?} from 0", x));
+      //no::log(&format!("got {:?} from 0", y));
       return y == x;
     }
     true
   }
+
+  // fn send0_recv1_vec<T: PartialEq + std::fmt::Debug>(x: [T]) -> bool {
+  //   if env::rank() == 0 {
+  //     //p2p::send(x, 1);
+  //     env::world().process_at_rank(1).send(&x);
+  //     no::log(&format!("sent {:?} to 1", x));
+  //   }
+  //   // if env::rank() == 1 {
+  //   //   let (y, _): ([T], _) = env::world().process_at_rank(0).receive();
+  //   //   //no::log(&format!("got {:?} from 0", y));
+  //   //   return y.iter().zip(&x).filter(|(&a,&b)| a == b).count() == x.len();
+  //   // }
+
+  //   true
+  // }
   // // template<typename T>
   // // bool send_recv(const T& x, no::Environment& env)
   // {
@@ -143,10 +161,38 @@ mod test {
     assert!(env::size() > 1, "mpi is not enabled");
 
     assert!(send0_recv1(false));
-    //assert!(send0_recv1('a'));
     assert!(send0_recv1(19937));
     assert!(send0_recv1(-1i64));
     assert!(send0_recv1(71.25));
+
+    // how to send chars, strings and vectors 
+    assert!(send0_recv1('c' as u8)); // char Equivalence not implemented 
+
+    let a = vec![0;12];
+    if env::rank() == 0 {
+      //p2p::send(x, 1);
+      env::world().process_at_rank(1).send(&a[..]);
+      no::log(&format!("sent {} elements to 1", a.len()));
+    }
+    if env::rank() == 1 {
+      let (b, status) = env::world().process_at_rank(0).receive_vec::<i32>();
+      no::log(&format!("recd {} elements from 0", b.len()));
+    }
+
+    // env::world().process_at_rank(1).send(&a[..]);
+    let a = "dhgsjdfg";
+    if env::rank() == 0 {
+      //p2p::send(x, 1);
+      env::world().process_at_rank(1).send(&a.as_bytes()[..]);
+      no::log(&format!("sent {:?} to 1", a));
+    }
+    if env::rank() == 1 {
+      let (b, status) = env::world().process_at_rank(0).receive_vec::<u8>();
+      no::log(&format!("recd {:?} from 0", std::str::from_utf8(&b).unwrap()));
+    }
+    // env::world().process_at_rank(1).send(&a.as_bytes()[..]);
+    // env::world().process_at_rank(1).send(&(a as u8));
+
     let mut x = 7122 + env::rank();
     // sends the value to next process and receives from previous (wrapped)
     x = env::rotate(x).unwrap();  
@@ -165,9 +211,6 @@ mod test {
     // should now be 12345 on all 
     assert_eq!(i, 12345);
 
-    // how to test this?
-    env::sync();
-
     let x = 10 * env::rank() + env::size();
 
     let a = match env::gather_into(0, &x) {
@@ -183,11 +226,10 @@ mod test {
     let a = vec![1 + env::rank() * env::rank(); env::size() as usize];
 
     let x = env::scatter_from(1, &a);
-    env::sync();
+    env::sync(); // required
     // x contains the value 1+1*1
     assert_eq!(x, 2);
 
-    
     // std::vector<double> g(env.size(), -1.0);
     // no::mpi::gather(x, g, 0);
     // if (env.rank() == 0)
@@ -221,6 +263,5 @@ mod test {
     //   CHECK(agv[i] == 10.0 * i + env.size());
     //   //no::log("allgather element %%=%%"_s % i % agv[i]);
     // }
-
   }
 }

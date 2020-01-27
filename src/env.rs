@@ -4,8 +4,10 @@ use mpi::topology::Communicator;
 use mpi::collective::CommunicatorCollectives;
 use mpi::collective::Root;
 
-use std::error::Error;
+use pyo3::prelude::*;
 use num::traits::Zero;
+
+use std::error::Error;
 
 // enum DistPolicy {
 //   ChainForward,
@@ -42,17 +44,23 @@ impl MPIEnv {
   }
 }
 
+// struct PyEnv {
+//   gil: GILGuard,
+//   //py: Python<'p> 
+// }
+
+// impl PyEnv {
+//   fn new() -> PyEnv {
+//     PyEnv{ gil: Python::acquire_gil() }
+//   }
+// }
+
 // TODO this data may need to be stored in the python module
 lazy_static! {
   static ref MPI_ENV: MPIEnv = { MPIEnv::new(true) };
 
-  //static ref BASE_SEED: i64 = { 19937 };
+  //static ref PY_ENV: GILGuard = Arc::new(Python::acquire_gil());
 }
-
-// static mut g_init: bool = false;
-
-// static /*mut*/ INDEP: bool = false;
-
 
 pub fn indep() -> bool {
   MPI_ENV.indep
@@ -73,6 +81,10 @@ pub fn seed() -> i64 {
 pub fn world() -> &'static mpi::topology::SystemCommunicator {
   &MPI_ENV.world
 }
+
+// pub fn py() -> Python<'static> {
+//   PY_ENV.gil.python()
+// }
 
 // template<typename T>
 // T& sendrecv(T& data, no::mpi::DistPolicy dist_policy = no::mpi::DistPolicy::CHAIN_FWD_WRAPPED)
