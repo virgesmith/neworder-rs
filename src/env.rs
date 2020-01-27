@@ -5,6 +5,7 @@ use mpi::collective::CommunicatorCollectives;
 use mpi::collective::Root;
 
 use std::error::Error;
+use num::traits::Zero;
 
 // enum DistPolicy {
 //   ChainForward,
@@ -94,17 +95,24 @@ pub fn broadcast_from<T: mpi::datatype::Equivalence>(from: i32, data: &mut T) ->
   Ok(())
 }
 
-// pub fn scatter_from<T: mpi::datatype::Equivalence>(from: i32, data: &Vec<T>) -> Result<T, Box<dyn Error>> { 
-//   let x: T;
-//   Ok(x)
-// }
+pub fn scatter_from<T: Zero + mpi::datatype::Equivalence>(from: i32, data: &Vec<T>) -> T { 
+
+  let src = world().process_at_rank(from);
+
+  let mut x = T::zero();
+  match rank() == from {
+    true => src.scatter_into_root(&data[..], &mut x),
+    false => src.scatter_into(&mut x)
+  };
+  x
+}
 
 // Returns an Option containing an array in rank() == to
-pub fn gather_into<T: mpi::datatype::Equivalence>(to: i32, data: &T) -> Option<Vec<T>> { 
+pub fn gather_into<T: mpi::datatype::Equivalence>(into: i32, data: &T) -> Option<Vec<T>> { 
 
-  let dst = world().process_at_rank(to);
+  let dst = world().process_at_rank(into);
 
-  match rank() == to {
+  match rank() == into {
     true => {
       let mut a = Vec::with_capacity(size() as usize);
       dst.gather_into_root(data, &mut a[..]);
@@ -115,13 +123,6 @@ pub fn gather_into<T: mpi::datatype::Equivalence>(to: i32, data: &T) -> Option<V
       None
     }
   }
-    // r if r == to => { 
-    //   let mut a = Vec::with_capacity(size() as usize);
-    //   //a[rank() as usize] = data;
-    //   mpi::
-    //   Some(a)
-    // },
-    // _ => None
 }
 
 

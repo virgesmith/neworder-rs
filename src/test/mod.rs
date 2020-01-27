@@ -154,7 +154,7 @@ mod test {
 
     //env::sendrecv("const char*").unwrap();
     // //CHECK(send_recv("const char*", env));
-    //send0_recv1(String::from("String"));
+    //send0_recv1(String::from("String").as_bytes());
     // //CHECK(send_recv("std::string"_s, env));
 
     let mut i = match env::rank() {
@@ -178,10 +178,16 @@ mod test {
       None => () 
     };
 
-    // TODO gather
-    // need an env::sync?
-    
+    // scatter
+    // a contains different values in each process
+    let a = vec![1 + env::rank() * env::rank(); env::size() as usize];
 
+    let x = env::scatter_from(1, &a);
+    env::sync();
+    // x contains the value 1+1*1
+    assert_eq!(x, 2);
+
+    
     // std::vector<double> g(env.size(), -1.0);
     // no::mpi::gather(x, g, 0);
     // if (env.rank() == 0)

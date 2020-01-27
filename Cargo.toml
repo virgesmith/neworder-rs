@@ -11,3 +11,4 @@ pyo3 = "*"
 #numpy = "*" #fails to build on nightly 2020-01-16
 mpi = "*"
 lazy_static = "*"
+num = "*"
