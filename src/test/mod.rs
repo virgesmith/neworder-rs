@@ -230,28 +230,11 @@ mod test {
     // x contains the value 1+1*1
     assert_eq!(x, 2);
 
-    // std::vector<double> g(env.size(), -1.0);
-    // no::mpi::gather(x, g, 0);
-    // if (env.rank() == 0)
-    // {
-    //   for (size_t i = 0; i < g.size(); ++i)
-    //   {
-    //     CHECK(g[i] == 10.0 * i + env.size());
-    //     //no::log("gather element %%=%%"_s % i % g[i]);
-    //   }
-    // }
-    // else 
-    // {
-    //   CHECK(g.empty());
-    // }
-
-    // std::vector<double> sv(env.size(), -1.0);
-    // if (env.rank() == 0)
-    //   for (size_t i = 0; i < sv.size(); ++i)
-    //     sv[i] = i * 10.0 + env.size();
-    // no::mpi::scatter(sv, x, 0);
-    // CHECK(x == 10.0 * env.rank() + env.size());
-    // //no::log("scatter rank %% x=%%"_s % env.rank() % x);
+    let i = 2_u64.pow(env::rank() as u32 + 1);
+    let mut a = vec![0u64; env::size() as usize];
+    env::world().all_gather_into(&i, &mut a[..]);
+    assert!(a.iter().enumerate().all(|(a, &b)| b == 2u64.pow(a as u32 + 1)));
+    //no::log(&format!("allgather: {:?}", a));
 
     // std::vector<double> agv(env.size(), -1.0);
     // // give agv one positive element
