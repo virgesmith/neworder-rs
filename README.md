@@ -10,7 +10,7 @@ As per usual:
 ```
 $ cargo build --release
 ```
-The binary will run happily as a single process but the tests require an MPI environment to run, otherwise you'll get
+The binary will run happily as a single process but the MPI tests require an MPI environment to run, otherwise you'll get
 ```
 $ cargo test --release
 ...
@@ -40,11 +40,4 @@ $ sudo apt install autoconf autogen libtool texinfo
 So far I've found no problems with it, but the package hasn't been updated in a couple of years which is of concern.
 
 ### numpy 
-The `numpy` (rust) package fails to build using nightly:
-```
-error: array lengths can't depend on generic parameters
-   --> /home/az/.cargo/registry/src/github.com-1ecc6299db9ec823/matrixmultiply-0.2.3/src/dgemm_kernel.rs:786:39
-    |
-786 |     let mut ab: [[T; NR]; MR] = [[0.; NR]; MR];
-```
-Will revisit this when it becomes a blocker...
+The `numpy` (rust) package initially failed to build using nightly, but is ok as of 27/1/2020. 

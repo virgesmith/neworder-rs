@@ -19,6 +19,8 @@ mod test {
   use mpi::traits::*;
   use mpi::collective::CommunicatorCollectives;
 
+  use numpy::{PyArray, PyArray1};
+
   #[test]
   fn timeline_statics() {
     assert_eq!(Timeline::DISTANT_PAST, Timeline::DISTANT_PAST);
@@ -47,6 +49,53 @@ mod test {
     assert!(!Timeline::isnever(x)); 
     // no nay never no more
     assert!(Timeline::isnever(Timeline::NEVER))  
+  }
+
+  #[test]
+  fn timeline() {
+    let mut timeline = Timeline::new(2020.0, 2050.0, vec![10,20,30]);
+
+    assert_eq!(timeline.idx(), 0);
+    assert_eq!(timeline.dt(), 1.0);
+    assert_eq!(timeline.at_checkpoint(), false);
+    assert_eq!(timeline.at_end(), false);
+
+    let r = timeline.next().unwrap();
+    assert_eq!(r.0, 1);
+    assert_eq!(r.1, 2021.0); 
+
+    assert_eq!(timeline.idx(), 1);
+    assert_eq!(timeline.at_checkpoint(), false);
+    assert_eq!(timeline.at_end(), false);
+
+    let r = timeline.nth(8).unwrap();
+    assert_eq!(r.0, 10);
+    assert_eq!(r.1, 2030.0);
+
+    assert_eq!(timeline.idx(), 10);
+    assert_eq!(timeline.at_checkpoint(), true);
+    assert_eq!(timeline.at_end(), false);
+
+    let r = timeline.nth(19).unwrap();
+    assert_eq!(r.0, 30);
+    assert_eq!(r.1, 2050.0);
+
+    assert_eq!(timeline.idx(), 30);
+    assert_eq!(timeline.at_checkpoint(), true);
+    assert_eq!(timeline.at_end(), true);
+
+    assert_eq!(timeline.next(), None);
+
+    timeline.reset();
+    let mut step = 1;
+    let mut year = 2021.0;
+    for (i, t) in timeline { //.collect::<Vec<(u32, f64)>>() {
+      //no::log(&format!("{} {}", i, t));
+      assert_eq!(step, i);
+      assert_eq!(year, t);
+      step += 1;
+      year += 1.0;
+    }
   }
 
   #[test]
@@ -103,6 +152,11 @@ mod test {
     // CHECK(no::Callback::eval("version() == '%%'"_s % no::module_version())().cast<bool>());
     // CHECK(no::Callback::eval("python() == '%%'"_s % no::python_version()/*.c_str()*/)().cast<bool>());
 
+    let pyarray = PyArray1::from_vec(gil.python(), (0..10).map(|i| 0.0 / (i as f64)).collect());
+    //no::log(&format!("{:?}", pyarray));
+    let res = Timeline::array_isnever(gil.python(), pyarray);
+    no::log(&format!("{:?}", res.as_ref(py)));
+    //assert!(res.as_ref(py)[0]);
   }
 
   //fn send0_recv1<T: PartialEq + mpi::datatype::Equivalence>(x: T) -> bool {

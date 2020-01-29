@@ -7,6 +7,8 @@ use pyo3::wrap_pyfunction;
 
 use pyo3::types::{PyModule, PyDict};
 
+use numpy::array::get_array_module;
+
 use crate::env;
 use crate::timeline::Timeline;
 
@@ -47,6 +49,18 @@ fn far_future() -> f64 {
   Timeline::FAR_FUTURE
 }
 
+#[pyfunction]
+#[name="isnever"]
+fn isnever_py(t: f64) -> bool {
+  Timeline::isnever(t)
+}
+
+// #[pyfunction]
+// #[name="isnever"]
+// fn isnever_pyarray(a: nparray1d<f64>) -> Py<nparray1d<bool>> {
+//   // where to get py from...
+//   Timeline::array_isnever(py, a)
+// }
 
 
 pub fn init_embedded(py: Python) -> PyResult<&PyModule> {
@@ -65,7 +79,10 @@ pub fn init_embedded(py: Python) -> PyResult<&PyModule> {
   no.add_wrapped(wrap_pyfunction!(never))?;
   no.add_wrapped(wrap_pyfunction!(distant_past))?;
   no.add_wrapped(wrap_pyfunction!(far_future))?;
+  no.add_wrapped(wrap_pyfunction!(isnever_py))?;
 
+  // now add numpy
+  let _np = get_array_module(py)?;
   Ok(no)
 }
 
