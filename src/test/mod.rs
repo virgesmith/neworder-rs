@@ -152,10 +152,10 @@ mod test {
     // CHECK(no::Callback::eval("version() == '%%'"_s % no::module_version())().cast<bool>());
     // CHECK(no::Callback::eval("python() == '%%'"_s % no::python_version()/*.c_str()*/)().cast<bool>());
 
-    let pyarray = PyArray1::from_vec(gil.python(), (0..10).map(|i| 0.0 / (i as f64)).collect());
+    let _pyarray = PyArray1::from_vec(gil.python(), (0..10).map(|i| 0.0 / (i as f64)).collect());
     //no::log(&format!("{:?}", pyarray));
-    let res = Timeline::array_isnever(gil.python(), pyarray);
-    no::log(&format!("{:?}", res.as_ref(py)));
+    //let res = Timeline::array_isnever(gil.python(), pyarray);
+    //no::log(&format!("{:?}", res.as_ref(py)));
     //assert!(res.as_ref(py)[0]);
   }
 
