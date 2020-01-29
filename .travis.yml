@@ -16,4 +16,5 @@ addons:
       - autoconf autogen libtool texinfo mpich libmpich-dev
 
 script:
-  - mpirun -n 3 cargo test -- --nocapture
+  - cargo build --release
+  - mpirun -n 3 cargo test --tests --release -- --nocapture
