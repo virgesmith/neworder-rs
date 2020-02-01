@@ -10,7 +10,7 @@ use pyo3::types::{PyModule, PyDict};
 use numpy::array::get_array_module;
 
 use crate::env;
-use crate::timeline::Timeline;
+use crate::timeline::{Timeline, isnever, NEVER, DISTANT_PAST, FAR_FUTURE};
 
 
 #[pyfunction]
@@ -34,26 +34,13 @@ fn log_impl(ctx: &'static str, rank: i32, size: i32, msg: &str) {
   println!("[{} {}/{}] {}", ctx, rank, size, msg);
 }
 
-#[pyfunction]
-fn never() -> f64 {
-  Timeline::NEVER
-}
 
-#[pyfunction]
-fn distant_past() -> f64 {
-  Timeline::DISTANT_PAST
-}
-
-#[pyfunction]
-fn far_future() -> f64 {
-  Timeline::FAR_FUTURE
-}
-
-#[pyfunction]
-#[name="isnever"]
-fn isnever_py(t: f64) -> bool {
-  Timeline::isnever(t)
-}
+// // TODO just use isnever?
+// #[pyfunction]
+// #[name="isnever"]
+// fn isnever_py(t: f64) -> bool {
+//   isnever(t)
+// }
 
 // #[pyfunction]
 // #[name="isnever"]
@@ -61,6 +48,65 @@ fn isnever_py(t: f64) -> bool {
 //   // where to get py from...
 //   Timeline::array_isnever(py, a)
 // }
+
+
+#[pyclass]
+pub struct TestClass {
+  i: i32,
+  x: f64
+}
+
+// #[pymethods]
+// impl TestClass {
+//   #[new]
+//   fn new_py(init: &PyRawObject, i: i32, x: f64) { 
+//     init.init(TestClass{i:i, x:x});
+//   }
+
+//   fn next(&mut self) { //-> &mut Self {
+//     self. i += 1;
+//     self. x += 0.01;
+//     //&mut self
+//   }
+
+//   fn foo(&self) -> f64 {
+//     self.x
+//   }
+// }
+
+// // not exposed to py
+// impl TestClass {
+//   fn new(i: i32, x: f64) -> Self { 
+//     TestClass{i:i, x:x}
+//   }
+
+//   fn bar(&self) -> i32 {
+//     self.i
+//   }
+// }
+
+
+#[pyfunction]
+fn never() -> f64 {
+  NEVER
+}
+
+#[pyfunction]
+fn distant_past() -> f64 {
+  DISTANT_PAST
+}
+
+#[pyfunction]
+fn far_future() -> f64 {
+  FAR_FUTURE
+}
+
+// custom comparison (as nan comparison always false)
+#[pyfunction]
+#[name="isnever"]
+fn isnever_py(t: f64) -> bool {
+  isnever(t)
+}
 
 
 pub fn init_embedded(py: Python) -> PyResult<&PyModule> {
@@ -80,6 +126,7 @@ pub fn init_embedded(py: Python) -> PyResult<&PyModule> {
   no.add_wrapped(wrap_pyfunction!(distant_past))?;
   no.add_wrapped(wrap_pyfunction!(far_future))?;
   no.add_wrapped(wrap_pyfunction!(isnever_py))?;
+  no.add_class::<Timeline>()?;
 
   // now add numpy
   let _np = get_array_module(py)?;

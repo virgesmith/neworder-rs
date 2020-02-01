@@ -4,7 +4,7 @@
 mod test {
 
   //use super::*;
-  use crate::timeline::Timeline;
+  use crate::timeline::{Timeline, isnever, NEVER, DISTANT_PAST, FAR_FUTURE};
   use crate::neworder as no;
   use crate::callback::Callback;
   use crate::env;
@@ -23,39 +23,39 @@ mod test {
 
   #[test]
   fn timeline_statics() {
-    assert_eq!(Timeline::DISTANT_PAST, Timeline::DISTANT_PAST);
-    assert_eq!(Timeline::FAR_FUTURE, Timeline::FAR_FUTURE);
-    assert!(Timeline::DISTANT_PAST < 0.0);
-    assert!(0.0 < Timeline::FAR_FUTURE);
-    assert!(!(Timeline::DISTANT_PAST < Timeline::NEVER));
-    assert!(!(Timeline::DISTANT_PAST >= Timeline::NEVER));
-    assert!(!(Timeline::FAR_FUTURE <= Timeline::NEVER));
-    assert!(!(Timeline::FAR_FUTURE > Timeline::NEVER));
+    assert_eq!(DISTANT_PAST, DISTANT_PAST);
+    assert_eq!(FAR_FUTURE, FAR_FUTURE);
+    assert!(DISTANT_PAST < 0.0);
+    assert!(0.0 < FAR_FUTURE);
+    assert!(!(DISTANT_PAST < NEVER));
+    assert!(!(DISTANT_PAST >= NEVER));
+    assert!(!(FAR_FUTURE <= NEVER));
+    assert!(!(FAR_FUTURE > NEVER));
 
     let x = -1e10;
-    assert!(Timeline::DISTANT_PAST < x);
-    assert!(Timeline::FAR_FUTURE > x);
+    assert!(DISTANT_PAST < x);
+    assert!(FAR_FUTURE > x);
     let x = 1e10;
-    assert!(Timeline::DISTANT_PAST < x);
-    assert!(Timeline::FAR_FUTURE > x);
+    assert!(DISTANT_PAST < x);
+    assert!(FAR_FUTURE > x);
 
     // dreams never end
-    assert_ne!(Timeline::NEVER, x);
-    assert_ne!(Timeline::NEVER, Timeline::NEVER);
-    assert!(!(Timeline::NEVER < x));
-    assert!(!(Timeline::NEVER == x));
-    assert!(!(Timeline::NEVER >= x));
+    assert_ne!(NEVER, x);
+    assert_ne!(NEVER, NEVER);
+    assert!(!(NEVER < x));
+    assert!(!(NEVER == x));
+    assert!(!(NEVER >= x));
     // no nay never
-    assert!(!Timeline::isnever(x)); 
+    assert!(!isnever(x)); 
     // no nay never no more
-    assert!(Timeline::isnever(Timeline::NEVER))  
+    assert!(isnever(NEVER))  
   }
 
   #[test]
   fn timeline() {
     let mut timeline = Timeline::new(2020.0, 2050.0, vec![10,20,30]);
 
-    assert_eq!(timeline.idx(), 0);
+    assert_eq!(timeline.index(), 0);
     assert_eq!(timeline.dt(), 1.0);
     assert_eq!(timeline.at_checkpoint(), false);
     assert_eq!(timeline.at_end(), false);
@@ -64,7 +64,7 @@ mod test {
     assert_eq!(r.0, 1);
     assert_eq!(r.1, 2021.0); 
 
-    assert_eq!(timeline.idx(), 1);
+    assert_eq!(timeline.index(), 1);
     assert_eq!(timeline.at_checkpoint(), false);
     assert_eq!(timeline.at_end(), false);
 
@@ -72,7 +72,7 @@ mod test {
     assert_eq!(r.0, 10);
     assert_eq!(r.1, 2030.0);
 
-    assert_eq!(timeline.idx(), 10);
+    assert_eq!(timeline.index(), 10);
     assert_eq!(timeline.at_checkpoint(), true);
     assert_eq!(timeline.at_end(), false);
 
@@ -80,7 +80,7 @@ mod test {
     assert_eq!(r.0, 30);
     assert_eq!(r.1, 2050.0);
 
-    assert_eq!(timeline.idx(), 30);
+    assert_eq!(timeline.index(), 30);
     assert_eq!(timeline.at_checkpoint(), true);
     assert_eq!(timeline.at_end(), true);
 
@@ -96,6 +96,23 @@ mod test {
       step += 1;
       year += 1.0;
     }
+
+    // null timeline
+    let mut notimeline = Timeline::null();
+
+    assert_eq!(notimeline.index(), 0);
+    assert_eq!(notimeline.dt(), 0.0);
+    assert_eq!(notimeline.at_checkpoint(), false);
+    assert_eq!(notimeline.at_end(), false);
+
+    let r = notimeline.next().unwrap();
+    assert_eq!(r.0, 1);
+    assert_eq!(r.1, 0.0); 
+    assert_eq!(notimeline.index(), 1);
+    assert_eq!(notimeline.at_checkpoint(), true);
+    assert_eq!(notimeline.at_end(), true);
+
+
   }
 
   #[test]
