@@ -27,7 +27,7 @@ pub struct Timeline {
 impl Timeline {
 
   #[new]
-  fn new_py(init: &PyRawObject, start: f64, end: f64, checkpoints: Vec<u32>) {
+  fn __new__(init: &PyRawObject, start: f64, end: f64, checkpoints: Vec<u32>) {
     init.init(Timeline::new(start, end, checkpoints));
   }
 
@@ -39,6 +39,23 @@ impl Timeline {
       end: 0.0,
       index: 0
     }
+  }
+
+  // pub fn start(&self) -> f64 {
+  //   self.start
+  // }
+
+  // pub fn end(&self) -> f64 {
+  //   self.end
+  // }
+
+  // pub fn checkpoints(&self) -> &Vec<u32> {
+  //   &self.checkpoints
+  // }
+
+  // Temporarily(?) expose an increment method to python
+  fn next(&mut self) {
+    self.index += 1;
   }
 
   // curent timestep index

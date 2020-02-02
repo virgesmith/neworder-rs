@@ -3,7 +3,7 @@ extern crate lazy_static;
 
 use pyo3::prelude::*;
 
-use pyo3::{Python, PyResult};
+use pyo3::{Python, PyResult, AsPyPointer};
 
 use pyo3::types::*; 
 
@@ -12,6 +12,9 @@ mod env;
 mod timeline;
 mod callback;
 mod test;
+
+use callback::{Callback, CallbackDict};
+use timeline::Timeline;
 
 fn append_model_paths(paths: &[String]) {
 
@@ -78,8 +81,10 @@ fn run<'py>(py: Python<'py>) -> PyResult<()> {
   //neworder::log(&test.call0("func")?.str()?.to_string()?);
   neworder::log(&format!("{}", config.call0("func")?));
 
-  let initialisations: &PyDict = no.get("initialisations")?.downcast_ref()?;
+  let globals = None;
+  let locals = None; // TODO import neworder
 
+  let initialisations: &PyDict = no.get("initialisations")?.downcast_ref()?;
   for (k, v) in initialisations.iter() {
     neworder::log(&format!("{}:", k));
     let d: &PyDict = v.downcast_ref()?;
@@ -96,7 +101,7 @@ fn run<'py>(py: Python<'py>) -> PyResult<()> {
 
     // module is a PyModule
     let module = py.import(&modulename)?;
-  
+
     // Get the class (a &PyObject)
     let class = &module.get(classname)?.to_object(py);
     // Call the ctor, (result is a &PyObject)
@@ -111,9 +116,39 @@ fn run<'py>(py: Python<'py>) -> PyResult<()> {
 
     // Call the __call__/operator() method
     let res = object.call(py, (), None)?; //.to_string()?;
-    neworder::log_py(py, res)?; //&format!("result={:?}", res ));
-  }  
+    neworder::log_py(py, res)?; //&format!("result={:?}", res )); 
 
+  }
+
+  let transitions: &PyDict = no.get("transitions")?.downcast_ref()?;
+  let mut transition_callbacks = CallbackDict::new();
+  for (k, v) in transitions.iter() {
+    let name = k.downcast_ref::<PyString>()?.to_string()?.to_string();
+    let code = v.downcast_ref::<PyString>()?.to_string()?.to_string();
+    transition_callbacks.insert(name, Callback::exec(code, globals, locals));   
+  }
+
+  let checkpoints: &PyDict = no.get("checkpoints")?.downcast_ref()?;
+  let mut checkpoint_callbacks = CallbackDict::new();
+  for (k, v) in checkpoints.iter() {
+    let name = k.downcast_ref::<PyString>()?.to_string()?.to_string();
+    let code = v.downcast_ref::<PyString>()?.to_string()?.to_string();
+    checkpoint_callbacks.insert(name, Callback::exec(code, globals, locals));   
+  }
+
+  // TODO how to get ptr to python impl
+  //let mut timeline: Timeline = Py::<Timeline>::from_borrowed_ptr(no.get("timeline")?.as_ptr()).as_ref(py).into(); //.get();
+  //let timeline: Timeline = no.get("timeline")?.extract()?;
+  let pytimeline = no.get("timeline")?.to_object(py);
+  loop {
+    pytimeline.getattr(py, "next")?.call0(py)?;
+
+    let i = pytimeline.getattr(py, "index")?.call0(py)?.extract::<u32>(py)?;
+    let t = pytimeline.getattr(py, "time")?.call0(py)?.extract::<f64>(py)?;
+    neworder::log(&format!("{}({})", i, t));
+    if pytimeline.getattr(py, "at_end")?.call0(py)?.extract::<bool>(py)? { break; }
+  }
+  
   Ok(())
 }
 

@@ -91,7 +91,7 @@ pub fn init_embedded(py: Python) -> PyResult<&PyModule> {
   let _np = get_array_module(py)?;
   Ok(no)
 }
-
+  
 fn add_module(py: Python, module: &PyModule) {
   py.import("sys")
     .expect("failed to import python sys module")

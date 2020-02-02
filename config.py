@@ -46,3 +46,9 @@ no.initialisations = {
   "greeter": { "module": "greet", "class_": "Greet", "args": ("x", "y", "z") }
 }
 
+no.transitions = { }
+
+no.checkpoints = { }
+
+no.timeline = no.Timeline(2020.0, 2030.0, [10])
+
