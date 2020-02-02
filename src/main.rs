@@ -13,7 +13,7 @@ mod timeline;
 mod callback;
 mod test;
 
-use callback::{Callback, CallbackDict};
+use callback::{Callback, CallbackDict, CallbackList};
 use timeline::Timeline;
 
 fn append_model_paths(paths: &[String]) {
@@ -79,11 +79,12 @@ fn run<'py>(py: Python<'py>) -> PyResult<()> {
   let config = py.import("config")?;
   //neworder::log(&format!("{}", py.eval("dir(testmodule)", None, None)?));
   //neworder::log(&test.call0("func")?.str()?.to_string()?);
-  neworder::log(&format!("{}", config.call0("func")?));
+  //neworder::log(&format!("{}", config.call0("func")?));
 
   let globals = None;
   let locals = None; // TODO import neworder
 
+  // initialisations: evaluated immediately
   let initialisations: &PyDict = no.get("initialisations")?.downcast_ref()?;
   for (k, v) in initialisations.iter() {
     neworder::log(&format!("{}:", k));
@@ -91,8 +92,8 @@ fn run<'py>(py: Python<'py>) -> PyResult<()> {
     // for (k2, v2) in d {
     //   neworder::log(&format!("  {}: {}", k2, v2));
     // }
-    let modulename = &d.get_item("module").unwrap().downcast_ref::<PyString>()?.to_string()?;
-    let classname = &d.get_item("class_").unwrap().downcast_ref::<PyString>()?.to_string()?;
+    let modulename = &d.get_item("module").unwrap().extract::<String>()?;
+    let classname = &d.get_item("class_").unwrap().extract::<String>()?;
     let args = d.get_item("args").unwrap().downcast_ref::<PyTuple>()?;
     let kwargs = match d.get_item("kwargs") {
       Some(d) => Some(d.downcast_ref::<PyDict>()?),
@@ -110,9 +111,9 @@ fn run<'py>(py: Python<'py>) -> PyResult<()> {
     // Get the method
     let method = object.getattr(py, "get_name")?;
     // Call it
-    let res = method.call0(py)?; //.as_ref();
+    let res = method.call0(py)?.extract::<String>(py)?; //.as_ref();
     // Display result
-    neworder::log_py(py, res)?;
+    neworder::log(&format!("get_name()={}",res));
 
     // Call the __call__/operator() method
     let res = object.call(py, (), None)?; //.to_string()?;
@@ -120,32 +121,99 @@ fn run<'py>(py: Python<'py>) -> PyResult<()> {
 
   }
 
+  // modifiers: (optional) list of exec, one per process
+  let modifiers = match no.get("modifiers") {
+    Ok(o) => {
+      let list = o.downcast_ref::<PyList>()?;
+      // TODO something more functional?
+      let mut cbs = CallbackList::new();
+      for item in list {
+        let code = item.extract::<String>()?; 
+        cbs.push(Callback::exec(code, globals, locals));
+      }
+      assert!(cbs.len() == env::size() as usize, "modifier array must have an entry for each process");
+      cbs
+    },
+    Err(_) => CallbackList::new()
+  };
+
+  // transitions: dict of exec
   let transitions: &PyDict = no.get("transitions")?.downcast_ref()?;
   let mut transition_callbacks = CallbackDict::new();
-  for (k, v) in transitions.iter() {
-    let name = k.downcast_ref::<PyString>()?.to_string()?.to_string();
-    let code = v.downcast_ref::<PyString>()?.to_string()?.to_string();
+  for (k, v) in transitions {
+    let name = k.extract::<String>()?; //downcast_ref::<PyString>()?.to_string()?.to_string();
+    let code = v.extract::<String>()?; //downcast_ref::<PyString>()?.to_string()?.to_string();
     transition_callbacks.insert(name, Callback::exec(code, globals, locals));   
   }
 
+  // checks: (optional) dict of eval
+  let checks = match no.get("checks") {
+    Ok(o) => {
+      let dict = o.downcast_ref::<PyDict>()?;
+      let mut cbs = CallbackDict::new();
+      for (k, v) in dict {
+        let name = k.extract::<String>()?;
+        let code = v.extract::<String>()?;
+        cbs.insert(name, Callback::eval(code, globals, locals));            
+      }
+      cbs
+    },
+    Err(_) => CallbackDict::new()
+  };
+
+  // checckpoints: dict of exec
   let checkpoints: &PyDict = no.get("checkpoints")?.downcast_ref()?;
   let mut checkpoint_callbacks = CallbackDict::new();
-  for (k, v) in checkpoints.iter() {
-    let name = k.downcast_ref::<PyString>()?.to_string()?.to_string();
-    let code = v.downcast_ref::<PyString>()?.to_string()?.to_string();
+  for (k, v) in checkpoints {
+    let name = k.extract::<String>()?; //downcast_ref::<PyString>()?.to_string()?.to_string();
+    let code = v.extract::<String>()?; //downcast_ref::<PyString>()?.to_string()?.to_string();
     checkpoint_callbacks.insert(name, Callback::exec(code, globals, locals));   
   }
+  
+  // // Apply any modifiers for this process
+  // if (!modifierArray.empty())
+  // {
+  //   no::log("t=%%(%%) modifier: %%"_s % env.timeline().time() % env.timeline().index() % modifierArray[env.rank()].code());
+  //   modifierArray[env.rank()]();
+  // }
+  if modifiers.len() > 0 {
+    neworder::log(&format!("applying modifier to process {}: {}", env::rank(), modifiers[env::rank() as usize].code_()));
+    modifiers[env::rank() as usize].run(py)?;
+  }
+
 
   // TODO how to get ptr to python impl
   //let mut timeline: Timeline = Py::<Timeline>::from_borrowed_ptr(no.get("timeline")?.as_ptr()).as_ref(py).into(); //.get();
-  //let timeline: Timeline = no.get("timeline")?.extract()?;
+  //let timeline: Timeline = no.get("timeline")?.extract::<Timeline>()?;
   let pytimeline = no.get("timeline")?.to_object(py);
   loop {
     pytimeline.getattr(py, "next")?.call0(py)?;
 
     let i = pytimeline.getattr(py, "index")?.call0(py)?.extract::<u32>(py)?;
     let t = pytimeline.getattr(py, "time")?.call0(py)?.extract::<f64>(py)?;
-    neworder::log(&format!("{}({})", i, t));
+
+    // implement transitions
+    for (k, v) in &transition_callbacks {
+      neworder::log(&format!("t={}({}) transition {}", t, i, k));
+      v.run(py)?;
+    }
+
+    // 
+    for (k, v) in &checks {
+      neworder::log(&format!("t={}({}) check {}", t, i, k));
+      match v.run(py)?.extract::<bool>(py)? {
+        true => (),
+        false => panic!("check failed")
+      }
+    }
+
+    if pytimeline.getattr(py, "at_checkpoint")?.call0(py)?.extract::<bool>(py)? {
+      for (k,v) in &checkpoint_callbacks {
+        neworder::log(&format!("t={}({}) checkpoint {}", t, i, k));
+        v.run(py)?;  
+      }
+    }
+
     if pytimeline.getattr(py, "at_end")?.call0(py)?.extract::<bool>(py)? { break; }
   }
   

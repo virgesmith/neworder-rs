@@ -29,6 +29,11 @@ impl<'a> Callback<'a> {
     Callback{ exec: false, code: code, globals: globals, locals: locals }
   }
 
+  // TODO swap 
+  pub fn code_(&self) -> &str {
+    &self.code
+  }
+
   pub fn run(&self, py: Python) -> PyResult<PyObject> {
     match self.exec {
       true => match py.run(&self.code, self.globals, self.locals) {

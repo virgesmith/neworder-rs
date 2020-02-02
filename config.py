@@ -24,10 +24,10 @@ def func():
 
   no.log("numpy is available? %s" % np.ones(10, dtype=bool)[0])
 
-  no.timeline = no.Timeline(2020.0, 2030.0, [10])
+  no.timeline = no.Timeline(2020.0, 2030.0, [5,10]) # NB timeline info NOT synced with rust!
   #no.timeline = no.Timeline.null()
-  no.log("timeline=%f %d %f" % (no.timeline.time(), no.timeline.index(), no.timeline.dt()))
-  no.log("timeline chk/end=%s %s" % (no.timeline.at_checkpoint(), no.timeline.at_end()))
+  # no.log("timeline=%f %d %f" % (no.timeline.time(), no.timeline.index(), no.timeline.dt()))
+  # no.log("timeline chk/end=%s %s" % (no.timeline.at_checkpoint(), no.timeline.at_end()))
   
 
   # t = no.TestClass(0, 2020.0)
@@ -46,9 +46,13 @@ no.initialisations = {
   "greeter": { "module": "greet", "class_": "Greet", "args": ("x", "y", "z") }
 }
 
-no.transitions = { }
+no.modifiers = [ "pass" ] 
 
-no.checkpoints = { }
+no.transitions = { } #TODO fix"who": "greeter.get_name()" }
 
-no.timeline = no.Timeline(2020.0, 2030.0, [10])
+no.checks = { } #"dummy": "True" }
+
+no.checkpoints = { "null": "pass" }
+
+no.timeline = no.Timeline(2020.0, 2030.0, [5,10])
 

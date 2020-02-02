@@ -89,15 +89,17 @@ mod test {
     assert_eq!(timeline.next(), None);
 
     timeline.reset();
+    
     let mut step = 1;
     let mut year = 2021.0;
-    for (i, t) in timeline { //.collect::<Vec<(u32, f64)>>() {
+    for (i, t) in timeline { 
       //no::log(&format!("{} {}", i, t));
       assert_eq!(step, i);
       assert_eq!(year, t);
       step += 1;
       year += 1.0;
     }
+    //assert!(timeline.at_checkpoint(), "should be at checkpoint");
 
     // null timeline
     let mut notimeline = Timeline::null();
