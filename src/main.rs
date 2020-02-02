@@ -82,16 +82,13 @@ fn run<'py>(py: Python<'py>) -> PyResult<()> {
   //neworder::log(&format!("{}", config.call0("func")?));
 
   let globals = None;
-  let locals = None; // TODO import neworder
+  let locals = PyDict::new(py); // TODO import neworder
 
   // initialisations: evaluated immediately
   let initialisations: &PyDict = no.get("initialisations")?.downcast_ref()?;
   for (k, v) in initialisations.iter() {
-    neworder::log(&format!("{}:", k));
+    neworder::log(&format!("initialisation:{}", k));
     let d: &PyDict = v.downcast_ref()?;
-    // for (k2, v2) in d {
-    //   neworder::log(&format!("  {}: {}", k2, v2));
-    // }
     let modulename = &d.get_item("module").unwrap().extract::<String>()?;
     let classname = &d.get_item("class_").unwrap().extract::<String>()?;
     let args = d.get_item("args").unwrap().downcast_ref::<PyTuple>()?;
@@ -108,16 +105,19 @@ fn run<'py>(py: Python<'py>) -> PyResult<()> {
     // Call the ctor, (result is a &PyObject)
     let object = &class.call(py, args, kwargs)?;
 
-    // Get the method
-    let method = object.getattr(py, "get_name")?;
-    // Call it
-    let res = method.call0(py)?.extract::<String>(py)?; //.as_ref();
-    // Display result
-    neworder::log(&format!("get_name()={}",res));
+    // add to locals
+    locals.set_item(k, object)?;
 
-    // Call the __call__/operator() method
-    let res = object.call(py, (), None)?; //.to_string()?;
-    neworder::log_py(py, res)?; //&format!("result={:?}", res )); 
+    // // Get the method
+    // let method = object.getattr(py, "get_name")?;
+    // // Call it
+    // let res = method.call0(py)?.extract::<String>(py)?; //.as_ref();
+    // // Display result
+    // neworder::log(&format!("get_name()={}",res));
+
+    // // Call the __call__/operator() method
+    // let res = object.call(py, (), None)?; //.to_string()?;
+    // neworder::log_py(py, res)?; //&format!("result={:?}", res )); 
 
   }
 
@@ -129,7 +129,7 @@ fn run<'py>(py: Python<'py>) -> PyResult<()> {
       let mut cbs = CallbackList::new();
       for item in list {
         let code = item.extract::<String>()?; 
-        cbs.push(Callback::exec(code, globals, locals));
+        cbs.push(Callback::exec(code, globals, Some(locals)));
       }
       assert!(cbs.len() == env::size() as usize, "modifier array must have an entry for each process");
       cbs
@@ -143,7 +143,7 @@ fn run<'py>(py: Python<'py>) -> PyResult<()> {
   for (k, v) in transitions {
     let name = k.extract::<String>()?; //downcast_ref::<PyString>()?.to_string()?.to_string();
     let code = v.extract::<String>()?; //downcast_ref::<PyString>()?.to_string()?.to_string();
-    transition_callbacks.insert(name, Callback::exec(code, globals, locals));   
+    transition_callbacks.insert(name, Callback::exec(code, globals, Some(locals)));   
   }
 
   // checks: (optional) dict of eval
@@ -154,7 +154,7 @@ fn run<'py>(py: Python<'py>) -> PyResult<()> {
       for (k, v) in dict {
         let name = k.extract::<String>()?;
         let code = v.extract::<String>()?;
-        cbs.insert(name, Callback::eval(code, globals, locals));            
+        cbs.insert(name, Callback::eval(code, globals, Some(locals)));            
       }
       cbs
     },
@@ -167,7 +167,7 @@ fn run<'py>(py: Python<'py>) -> PyResult<()> {
   for (k, v) in checkpoints {
     let name = k.extract::<String>()?; //downcast_ref::<PyString>()?.to_string()?.to_string();
     let code = v.extract::<String>()?; //downcast_ref::<PyString>()?.to_string()?.to_string();
-    checkpoint_callbacks.insert(name, Callback::exec(code, globals, locals));   
+    checkpoint_callbacks.insert(name, Callback::exec(code, globals, Some(locals)));   
   }
   
   // // Apply any modifiers for this process
@@ -216,6 +216,7 @@ fn run<'py>(py: Python<'py>) -> PyResult<()> {
 
     if pytimeline.getattr(py, "at_end")?.call0(py)?.extract::<bool>(py)? { break; }
   }
+  neworder::log(&format!("Completed. exec time=???"));
   
   Ok(())
 }
