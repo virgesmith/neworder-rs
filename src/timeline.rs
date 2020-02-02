@@ -1,9 +1,9 @@
 
 use pyo3::prelude::*;
 use pyo3::{Py,Python};
-use numpy::PyArray1 as nparray1d;
-use numpy::PyArrayDyn as nparray;
-use numpy::PyArray;
+use numpy::PyArray1;
+//use numpy::PyArrayDyn;
+//use numpy::PyArray;
 
 
 #[pyclass]
@@ -19,44 +19,27 @@ pub struct Timeline {
 }
 
 
-// e.g. { 2020.0, 2050.0, [10,20,30] }
+// e.g. Timeline{ 2020.0, 2050.0, [10,20,30] }
 // gives 1 year timesteps with checkpoints at 2030.0, 2040.0 ending at 2050.0
-
-// TODO can we implement iter()/enumerate() for this struct?
-
 
 
 #[pymethods]
 impl Timeline {
 
-  // TODO call the ctor
   #[new]
   fn new_py(init: &PyRawObject, start: f64, end: f64, checkpoints: Vec<u32>) {
-    assert!(start < end, "start time must be before end time");
-    assert!(checkpoints.len() > 0);
-    for i in 1..checkpoints.len() {
-      assert!(checkpoints[i-1] < checkpoints[i], "checkpoints should be monotonically increasing");
-    }
-
-    init.init(Timeline {
-      checkpoints: checkpoints,
-      start: start,
-      end: end,
-      index: 0
-    });
+    init.init(Timeline::new(start, end, checkpoints));
   }
 
-  // TODO use static method
-  // cannot have 2 news
-  // #[new]
-  // fn null_py(init: &PyRawObject) {
-  //   init.init(Timeline {
-  //     checkpoints: vec![1;1],
-  //     start: 0.0,
-  //     end: 0.0,
-  //     index: 0
-  //   });
-  // }
+  #[staticmethod]
+  pub fn null() -> Self {
+    Timeline {
+      checkpoints: vec![1;1],
+      start: 0.0,
+      end: 0.0,
+      index: 0
+    }
+  }
 
   // curent timestep index
   pub fn index(&self) -> u32 {
@@ -71,6 +54,18 @@ impl Timeline {
   // timestep length
   pub fn dt(&self) -> f64 {
     (self.end - self.start) / (self.checkpoints.last().unwrap().clone() as f64)
+  }
+
+  // is current index a checkpoint?
+  pub fn at_checkpoint(&self) -> bool {
+    match self.checkpoints.iter().find(|&&x| x == self.index) {
+      Some(_) => true,
+      None => false
+    }
+  }
+
+  pub fn at_end(&self) -> bool {
+    &self.index == self.checkpoints.last().unwrap()
   }
 
 }
@@ -93,32 +88,6 @@ impl Timeline {
     }
   }
 
-  pub fn null() -> Self {
-    Timeline {
-      checkpoints: vec![1;1],
-      start: 0.0,
-      end: 0.0,
-      index: 0
-    }
-  }
-
-  // increment timestep (check for running off end)
-  pub fn step(&mut self) {
-    self.index += 1;
-  }
-
-  // is current index a checkpoint?
-  pub fn at_checkpoint(&self) -> bool {
-    match self.checkpoints.iter().find(|&&x| x == self.index) {
-      Some(_) => true,
-      None => false
-    }
-  }
-
-  pub fn at_end(&self) -> bool {
-    &self.index == self.checkpoints.last().unwrap()
-  }
-
   pub fn reset(&mut self) {
     self.index = 0;
   }
@@ -127,7 +96,7 @@ impl Timeline {
   // TODO how to iterate over an nD array
   // pub fn array_isnever_nd(py: Python, a: &nparray<f64>) -> Py<nparray<bool>> {
   //   let r = a.as_slice().unwrap().iter().map(|&x| Timeline::isnever(x)).collect::<Vec<bool>>();
-  //   //let res = nparray1d::new(py, a.dims(), false);
+  //   //let res = PyArray1<?>::new(py, a.dims(), false);
   //   let res = nparray::from_vec(py, r);
   //   res.to_owned()
   // }
@@ -138,7 +107,7 @@ impl Iterator for Timeline {
 
   fn next(&mut self) -> Option<Self::Item> {
     match self.at_end() {
-      false => { self.step(); Some((self.index(), self.time())) },
+      false => { self.index += 1; Some((self.index(), self.time())) },
       true => None
     }
   }
@@ -157,10 +126,10 @@ pub fn isnever(t: f64) -> bool {
 }
 
 //#[pyfunction]
-pub fn array_isnever(py: Python, a: &nparray1d<f64>) -> Py<nparray1d<bool>> {
+pub fn array_isnever(py: Python, a: &PyArray1<f64>) -> Py<PyArray1<bool>> {
   let r = a.as_slice().unwrap().iter().map(|&x| isnever(x)).collect::<Vec<bool>>();
-  //let res = nparray1d::new(py, a.dims(), false);
-  let res = nparray1d::from_vec(py, r);
+  //let res = PyArray1::new(py, a.dims(), false);
+  let res = PyArray1::from_vec(py, r);
   res.to_owned()
 }
 

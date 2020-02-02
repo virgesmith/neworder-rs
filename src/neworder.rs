@@ -8,9 +8,11 @@ use pyo3::wrap_pyfunction;
 use pyo3::types::{PyModule, PyDict};
 
 use numpy::array::get_array_module;
+//use numpy::PyArray1;
+
 
 use crate::env;
-use crate::timeline::{Timeline, isnever, NEVER, DISTANT_PAST, FAR_FUTURE};
+use crate::timeline::{Timeline, isnever, /*array_isnever,*/ NEVER, DISTANT_PAST, FAR_FUTURE};
 
 
 #[pyfunction]
@@ -35,57 +37,6 @@ fn log_impl(ctx: &'static str, rank: i32, size: i32, msg: &str) {
 }
 
 
-// // TODO just use isnever?
-// #[pyfunction]
-// #[name="isnever"]
-// fn isnever_py(t: f64) -> bool {
-//   isnever(t)
-// }
-
-// #[pyfunction]
-// #[name="isnever"]
-// fn isnever_pyarray(a: nparray1d<f64>) -> Py<nparray1d<bool>> {
-//   // where to get py from...
-//   Timeline::array_isnever(py, a)
-// }
-
-
-#[pyclass]
-pub struct TestClass {
-  i: i32,
-  x: f64
-}
-
-// #[pymethods]
-// impl TestClass {
-//   #[new]
-//   fn new_py(init: &PyRawObject, i: i32, x: f64) { 
-//     init.init(TestClass{i:i, x:x});
-//   }
-
-//   fn next(&mut self) { //-> &mut Self {
-//     self. i += 1;
-//     self. x += 0.01;
-//     //&mut self
-//   }
-
-//   fn foo(&self) -> f64 {
-//     self.x
-//   }
-// }
-
-// // not exposed to py
-// impl TestClass {
-//   fn new(i: i32, x: f64) -> Self { 
-//     TestClass{i:i, x:x}
-//   }
-
-//   fn bar(&self) -> i32 {
-//     self.i
-//   }
-// }
-
-
 #[pyfunction]
 fn never() -> f64 {
   NEVER
@@ -107,6 +58,14 @@ fn far_future() -> f64 {
 fn isnever_py(t: f64) -> bool {
   isnever(t)
 }
+
+// #[pyfunction]
+// #[name="isnever"]
+// fn isnever_pyarray_py(a: PyArray1<f64>) -> Py<PyArray1<bool>> {
+
+//   // where to get py from...TODO does this suffice?
+//   array_isnever(Python::acquire_gil().python(), &a)
+// }
 
 
 pub fn init_embedded(py: Python) -> PyResult<&PyModule> {

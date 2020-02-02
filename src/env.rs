@@ -4,7 +4,7 @@ use mpi::topology::Communicator;
 use mpi::collective::CommunicatorCollectives;
 use mpi::collective::Root;
 
-use pyo3::prelude::*;
+//use pyo3::prelude::*;
 use num::traits::Zero;
 
 use std::error::Error;

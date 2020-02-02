@@ -13,13 +13,13 @@ mod test {
   use pyo3::{Python};//, PyResult};
   use pyo3::types::*; 
 
-  use mpi::point_to_point as p2p;
+  //use mpi::point_to_point as p2p;
   use mpi::point_to_point::{Source, Destination};
-  use mpi::topology::Rank;
+  //use mpi::topology::Rank;
   use mpi::traits::*;
   use mpi::collective::CommunicatorCollectives;
 
-  use numpy::{PyArray, PyArray1};
+  use numpy::{PyArray1};
 
   #[test]
   fn timeline_statics() {
@@ -60,11 +60,13 @@ mod test {
     assert_eq!(timeline.at_checkpoint(), false);
     assert_eq!(timeline.at_end(), false);
 
+    // test Iterator impl
     let r = timeline.next().unwrap();
     assert_eq!(r.0, 1);
     assert_eq!(r.1, 2021.0); 
 
     assert_eq!(timeline.index(), 1);
+    assert_eq!(timeline.time(), 2021.0);
     assert_eq!(timeline.at_checkpoint(), false);
     assert_eq!(timeline.at_end(), false);
 
