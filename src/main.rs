@@ -2,10 +2,12 @@
 extern crate lazy_static;
 
 use pyo3::prelude::*;
-
 use pyo3::{Python, PyResult, AsPyPointer};
-
 use pyo3::types::*; 
+
+use mpi::topology::Rank;
+
+use argparse::{ArgumentParser, StoreFalse, Collect};
 
 mod neworder;
 mod env;
@@ -29,19 +31,39 @@ fn append_model_paths(paths: &[String]) {
   std::env::set_var("PYTHONPATH", pypath);
 }
 
+const BASE_SEED: i64 = 19937;
+
+// generate a seed for each process
+fn genseed(rank: Rank, size: Rank, indep: bool) -> i64 {
+  if indep {
+    BASE_SEED * (size as i64) + (rank as i64)
+  } else {
+    BASE_SEED
+  }
+}
+
+
+
 fn main() -> Result<(), ()> {
 
-  let args = std::env::args().collect::<Vec<String>>();
+  let mut independent = true;
+  let mut paths = Vec::new();
 
-  if args.len() < 2 {
-    println!("usage: neworder <model-path> [<extra-path>...]");
-    std::process::exit(1)
+  // this block limits scope of (mutable) borrows by ap.refer() method
+  {
+    let mut ap = ArgumentParser::new();
+    ap.set_description("neworder embedded python microsimulation framework.");
+    ap.refer(&mut independent)
+        .add_option(&["-c", "--correlated"], StoreFalse, "Use same RNG stream for every process");
+    ap.refer(&mut paths)
+        .add_argument("path", Collect, "python path");
+    ap.parse_args_or_exit();
   }
 
-  append_model_paths(&args[1..]);
+  append_model_paths(&paths);
 
   let gil = Python::acquire_gil();
-  run(gil.python()).map_err(|e| {
+  run(gil.python(), independent).map_err(|e| {
     eprintln!("error! :{:?}", e);
     // we can't display python error type via ::std::fmt::Display
     // so print error here manually
@@ -50,35 +72,23 @@ fn main() -> Result<(), ()> {
 }
 
 
-// fn main() -> Result<(), ()> {
-//   let gil = Python::acquire_gil();
-//   let py = gil.python();
-//   main_(py).map_err(|e| {
-//       // We can't display python error type via ::std::fmt::Display,
-//       // so print error here manually.
-//       e.print_and_set_sys_last_vars(py);
-//   })
-// }
-
-// fn main_(py: Python) -> PyResult<()> {
-//   let sys = py.import("sys")?;
-//   let version: String = sys.get("version")?.extract()?;
-//   let locals = [("os", py.import("os")?)].into_py_dict(py);
-//   let code = "os.getenv('USER') or os.getenv('USERNAME') or 'Unknown'";
-//   let user: String = py.eval(code, None, Some(&locals))?.extract()?;
-//   println!("Hello {}, I'm Python {}", user, version);
-//   Ok(())
-// }
-
-fn run<'py>(py: Python<'py>) -> PyResult<()> {
+fn run<'py>(py: Python<'py>, independent: bool) -> PyResult<()> {
 
   let start_time = Instant::now();
 
   let no = neworder::init_embedded(py)?;
 
+  // set RNG seed params
+  no.add("indep", independent)?;
+  no.add("seed", genseed(env::rank(), env::size(), independent))?;
+
   let pyinfo = py.import("sys")?.get("version")?.to_string().replace("\n", "");
 
-  neworder::log(&format!("{} initialised: python={} indep={} seed={}", neworder::name(), &pyinfo, env::indep(), env::seed()));
+  neworder::log(&format!("{} initialised: python={} indep={} seed={}", 
+    neworder::name(), 
+    &pyinfo, 
+    no.get("indep")?.extract::<bool>()?, 
+    no.get("seed")?.extract::<i64>()?));
   neworder::log(&format!("PYTHONPATH={}", std::env::var("PYTHONPATH").unwrap()));
   
   let config = py.import("config")?;
@@ -87,7 +97,8 @@ fn run<'py>(py: Python<'py>) -> PyResult<()> {
   //neworder::log(&format!("{}", config.call0("func")?));
 
   let globals = None;
-  let locals = PyDict::new(py); // TODO import neworder
+  let locals = PyDict::new(py); 
+  locals.set_item("neworder", no)?;
 
   // initialisations: evaluated immediately
   let initialisations: &PyDict = no.get("initialisations")?.downcast_ref()?;
@@ -121,8 +132,8 @@ fn run<'py>(py: Python<'py>) -> PyResult<()> {
     // neworder::log(&format!("get_name()={}",res));
 
     // // Call the __call__/operator() method
-    // let res = object.call(py, (), None)?; //.to_string()?;
-    // neworder::log_py(py, res)?; //&format!("result={:?}", res )); 
+    // let res = object.call(py, (), None)?.extract::<String>(py)?;
+    // neworder::log(&format!("result={}", res )); 
 
   }
 
@@ -146,8 +157,8 @@ fn run<'py>(py: Python<'py>) -> PyResult<()> {
   let transitions: &PyDict = no.get("transitions")?.downcast_ref()?;
   let mut transition_callbacks = CallbackDict::new();
   for (k, v) in transitions {
-    let name = k.extract::<String>()?; //downcast_ref::<PyString>()?.to_string()?.to_string();
-    let code = v.extract::<String>()?; //downcast_ref::<PyString>()?.to_string()?.to_string();
+    let name = k.extract::<String>()?;
+    let code = v.extract::<String>()?;
     transition_callbacks.insert(name, Callback::exec(code, globals, Some(locals)));   
   }
 
@@ -170,17 +181,11 @@ fn run<'py>(py: Python<'py>) -> PyResult<()> {
   let checkpoints: &PyDict = no.get("checkpoints")?.downcast_ref()?;
   let mut checkpoint_callbacks = CallbackDict::new();
   for (k, v) in checkpoints {
-    let name = k.extract::<String>()?; //downcast_ref::<PyString>()?.to_string()?.to_string();
+    let name = k.extract::<String>()?;
     let code = v.extract::<String>()?; //downcast_ref::<PyString>()?.to_string()?.to_string();
     checkpoint_callbacks.insert(name, Callback::exec(code, globals, Some(locals)));   
   }
   
-  // // Apply any modifiers for this process
-  // if (!modifierArray.empty())
-  // {
-  //   no::log("t=%%(%%) modifier: %%"_s % env.timeline().time() % env.timeline().index() % modifierArray[env.rank()].code());
-  //   modifierArray[env.rank()]();
-  // }
   if modifiers.len() > 0 {
     neworder::log(&format!("applying modifier to process {}: {}", env::rank(), modifiers[env::rank() as usize].code_()));
     modifiers[env::rank() as usize].run(py)?;

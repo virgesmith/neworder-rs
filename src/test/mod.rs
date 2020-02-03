@@ -15,7 +15,7 @@ mod test {
 
   //use mpi::point_to_point as p2p;
   use mpi::point_to_point::{Source, Destination};
-  //use mpi::topology::Rank;
+  use mpi::topology::Rank;
   use mpi::traits::*;
   use mpi::collective::CommunicatorCollectives;
 
@@ -291,7 +291,7 @@ mod test {
     let a = match env::gather_into(0, &x) {
       Some(a) => {
         assert_eq!(env::rank(), 0);
-        assert!(a.iter().enumerate().all(|(r, &x)|  x == 10 * (r as i32) + env::size()));
+        assert!(a.iter().enumerate().all(|(r, &x)|  x == 10 * (r as Rank) + env::size()));
       },
       None => () 
     };

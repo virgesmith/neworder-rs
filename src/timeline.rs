@@ -1,6 +1,7 @@
 
 use pyo3::prelude::*;
 use pyo3::{Py,Python};
+use pyo3::types::PyString;
 use numpy::PyArray1;
 //use numpy::PyArrayDyn;
 //use numpy::PyArray;
@@ -85,6 +86,14 @@ impl Timeline {
     &self.index == self.checkpoints.last().unwrap()
   }
 
+  // this doesnt work unless explicitly called e.g. repr(timeline) or timeline.__repr__()
+  fn __repr__(&self) -> PyResult<String> {
+    Ok(format!("<neworder.Timeline start={} end={}, checkpoints={:?} index={}>", self.start, self.end, self.checkpoints, self.index))
+  }
+
+  fn __str__(&self) -> PyResult<String> {
+    self.__repr__()
+  }
 }
 
 // methods not visible to python
