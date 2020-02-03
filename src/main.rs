@@ -13,6 +13,9 @@ mod timeline;
 mod callback;
 mod test;
 
+use std::time::{Duration, Instant};
+
+
 use callback::{Callback, CallbackDict, CallbackList};
 use timeline::Timeline;
 
@@ -68,6 +71,8 @@ fn main() -> Result<(), ()> {
 // }
 
 fn run<'py>(py: Python<'py>) -> PyResult<()> {
+
+  let start_time = Instant::now();
 
   let no = neworder::init_embedded(py)?;
 
@@ -216,7 +221,7 @@ fn run<'py>(py: Python<'py>) -> PyResult<()> {
 
     if pytimeline.getattr(py, "at_end")?.call0(py)?.extract::<bool>(py)? { break; }
   }
-  neworder::log(&format!("Completed. exec time=???"));
+  neworder::log(&format!("Completed. exec time(s)={}", start_time.elapsed().as_secs_f64()));
   
   Ok(())
 }
