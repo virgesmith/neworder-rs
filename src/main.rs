@@ -2,7 +2,7 @@
 extern crate lazy_static;
 
 use pyo3::prelude::*;
-use pyo3::{Python, PyResult, AsPyPointer};
+use pyo3::{Python, PyResult}; //, AsPyPointer};
 use pyo3::types::*; 
 
 use mpi::topology::Rank;
@@ -14,8 +14,9 @@ mod env;
 mod timeline;
 mod callback;
 mod test;
+mod montecarlo;
 
-use std::time::{Duration, Instant};
+use std::time::{/*Duration, */Instant};
 
 
 use callback::{Callback, CallbackDict, CallbackList};
@@ -30,18 +31,6 @@ fn append_model_paths(paths: &[String]) {
 
   std::env::set_var("PYTHONPATH", pypath);
 }
-
-const BASE_SEED: i64 = 19937;
-
-// generate a seed for each process
-fn genseed(rank: Rank, size: Rank, indep: bool) -> i64 {
-  if indep {
-    BASE_SEED * (size as i64) + (rank as i64)
-  } else {
-    BASE_SEED
-  }
-}
-
 
 
 fn main() -> Result<(), ()> {
@@ -78,20 +67,20 @@ fn run<'py>(py: Python<'py>, independent: bool) -> PyResult<()> {
 
   let no = neworder::init_embedded(py)?;
 
-  // set RNG seed params
-  no.add("indep", independent)?;
-  no.add("seed", genseed(env::rank(), env::size(), independent))?;
+  // init the MC engine
+  let mc = neworder::init_mc(py, independent, no);
+  //
+  let mc = no.get("mc")?.to_object(py);
+  let indep = mc.getattr(py, "indep")?.call0(py)?.extract::<bool>(py)?;
+  let seed = mc.getattr(py, "seed")?.call0(py)?.extract::<u32>(py)?;
 
   let pyinfo = py.import("sys")?.get("version")?.to_string().replace("\n", "");
 
-  neworder::log(&format!("{} initialised: python={} indep={} seed={}", 
-    neworder::name(), 
-    &pyinfo, 
-    no.get("indep")?.extract::<bool>()?, 
-    no.get("seed")?.extract::<i64>()?));
+  neworder::log(&format!("{} initialised: mc=(indep:{} seed:{}) python={}", 
+    neworder::name(), indep, seed, &pyinfo)); 
   neworder::log(&format!("PYTHONPATH={}", std::env::var("PYTHONPATH").unwrap()));
   
-  let config = py.import("config")?;
+  let _config = py.import("config").expect("module config was not imported successfully");
   //neworder::log(&format!("{}", py.eval("dir(testmodule)", None, None)?));
   //neworder::log(&test.call0("func")?.str()?.to_string()?);
   //neworder::log(&format!("{}", config.call0("func")?));
@@ -147,7 +136,7 @@ fn run<'py>(py: Python<'py>, independent: bool) -> PyResult<()> {
         let code = item.extract::<String>()?; 
         cbs.push(Callback::exec(code, globals, Some(locals)));
       }
-      assert!(cbs.len() == env::size() as usize, "modifier array must have an entry for each process");
+      assert!(cbs.len() == env::size() as usize || cbs.len() == 0, "modifier array must either empty or have an entry for each process");
       cbs
     },
     Err(_) => CallbackList::new()
@@ -192,15 +181,18 @@ fn run<'py>(py: Python<'py>, independent: bool) -> PyResult<()> {
   }
 
 
-  // TODO how to get ptr to python impl
+  // TODO how to get ptr to python impl as rust type?
   //let mut timeline: Timeline = Py::<Timeline>::from_borrowed_ptr(no.get("timeline")?.as_ptr()).as_ref(py).into(); //.get();
-  //let timeline: Timeline = no.get("timeline")?.extract::<Timeline>()?;
-  let pytimeline = no.get("timeline")?.to_object(py);
+  let timeline: &mut Timeline = no.get("timeline")?.extract()?;
+  //let pytimeline = no.get("timeline")?.to_object(py);
   loop {
-    pytimeline.getattr(py, "next")?.call0(py)?;
+    //pytimeline.getattr(py, "next")?.call0(py)?;
+    timeline.next();
 
-    let i = pytimeline.getattr(py, "index")?.call0(py)?.extract::<u32>(py)?;
-    let t = pytimeline.getattr(py, "time")?.call0(py)?.extract::<f64>(py)?;
+    // let i = pytimeline.getattr(py, "index")?.call0(py)?.extract::<u32>(py)?;
+    // let t = pytimeline.getattr(py, "time")?.call0(py)?.extract::<f64>(py)?;
+    let i = timeline.index();
+    let t = timeline.time();
 
     // implement transitions
     for (k, v) in &transition_callbacks {
@@ -217,14 +209,16 @@ fn run<'py>(py: Python<'py>, independent: bool) -> PyResult<()> {
       }
     }
 
-    if pytimeline.getattr(py, "at_checkpoint")?.call0(py)?.extract::<bool>(py)? {
+    //if pytimeline.getattr(py, "at_checkpoint")?.call0(py)?.extract::<bool>(py)? {
+    if timeline.at_checkpoint() {
       for (k,v) in &checkpoint_callbacks {
         neworder::log(&format!("t={}({}) checkpoint {}", t, i, k));
         v.run(py)?;  
       }
     }
 
-    if pytimeline.getattr(py, "at_end")?.call0(py)?.extract::<bool>(py)? { break; }
+    //if pytimeline.getattr(py, "at_end")?.call0(py)?.extract::<bool>(py)? { break; }
+    if timeline.at_end() { break; }
   }
   neworder::log(&format!("Completed. exec time(s)={}", start_time.elapsed().as_secs_f64()));
   

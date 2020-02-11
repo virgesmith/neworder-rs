@@ -4,7 +4,6 @@ use mpi::topology::{Rank, Communicator};
 use mpi::collective::CommunicatorCollectives;
 use mpi::collective::Root;
 
-//use pyo3::prelude::*;
 use num::traits::Zero;
 
 use std::error::Error;
@@ -44,7 +43,7 @@ pub fn world() -> &'static mpi::topology::SystemCommunicator {
   &MPI_ENV.world
 }
 
-
+#[allow(dead_code)]
 pub fn rotate<T: mpi::datatype::Equivalence>(data: T) -> Result<T, Box<dyn Error>> {
   
   let rank = rank();

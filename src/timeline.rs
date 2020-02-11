@@ -1,7 +1,7 @@
 
 use pyo3::prelude::*;
 use pyo3::{Py,Python};
-use pyo3::types::PyString;
+use pyo3::types::PyAny;
 use numpy::PyArray1;
 //use numpy::PyArrayDyn;
 //use numpy::PyArray;
@@ -86,7 +86,7 @@ impl Timeline {
     &self.index == self.checkpoints.last().unwrap()
   }
 
-  // this doesnt work unless explicitly called e.g. repr(timeline) or timeline.__repr__()
+  // this doesnt work unless explicitly called e.g. timeline.__repr__()
   fn __repr__(&self) -> PyResult<String> {
     Ok(format!("<neworder.Timeline start={} end={}, checkpoints={:?} index={}>", self.start, self.end, self.checkpoints, self.index))
   }
@@ -138,6 +138,7 @@ impl Iterator for Timeline {
     }
   }
 }
+
 
 // unequal to any other value 
 pub const NEVER: f64 = std::f64::NAN;

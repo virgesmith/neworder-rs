@@ -14,3 +14,4 @@ mpi = "*"
 lazy_static = "*"
 num = "*"
 argparse = "*"
+rand = { path = "../rust101/rand" }

@@ -5,13 +5,12 @@ use pyo3::{Python, PyResult};
 use pyo3::wrap_pyfunction;
 use pyo3::types::{PyModule, PyDict, PyTuple, PyString};
 
-use numpy::array::get_array_module;
-//use numpy::PyArray1;
+//use numpy::array::get_array_module;
 use mpi::topology::Rank;
 
 use crate::env;
 use crate::timeline::{Timeline, isnever, /*array_isnever,*/ NEVER, DISTANT_PAST, FAR_FUTURE};
-use crate::callback::Callback;
+use crate::montecarlo::MonteCarlo;
 
 #[pyfunction]
 pub fn name() -> &'static str {
@@ -59,6 +58,16 @@ fn log_impl(ctx: &'static str, rank: Rank, size: Rank, msg: &str) {
   println!("[{} {}/{}] {}", ctx, rank, size, msg);
 }
 
+#[pyfunction]
+pub fn rank() -> Rank {
+  env::rank()
+}
+
+#[pyfunction]
+pub fn size() -> Rank {
+  env::size()
+}
+
 
 #[pyfunction]
 fn never() -> f64 {
@@ -82,15 +91,6 @@ fn isnever_py(t: f64) -> bool {
   isnever(t)
 }
 
-// pub fn indep() -> bool {
-//   MPI_ENV.indep
-// }
-
-// pub fn seed() -> i64 {
-//   MPI_ENV.seed
-// }
-
-
 // #[pyfunction]
 // #[name="isnever"]
 // fn isnever_pyarray_py(a: PyArray1<f64>) -> Py<PyArray1<bool>> {
@@ -99,15 +99,14 @@ fn isnever_py(t: f64) -> bool {
 //   array_isnever(Python::acquire_gil().python(), &a)
 // }
 
+
 pub fn init_embedded(py: Python) -> PyResult<&PyModule> {
   let no = PyModule::new(py, "neworder")?;
   add_module(py, no);
-  // use the module to store global variables
-  no.add("rank", env::rank())?;
-  no.add("size", env::size())?;
-  // seeding settings added on initialisation
-  // no.add("indep", true)?;
-  // no.add("seed", 0)?;
+  no.add_wrapped(wrap_pyfunction!(rank))?;
+  no.add_wrapped(wrap_pyfunction!(size))?;
+  // use the module to store global variables when not easy on the rust side
+  // seeding settings INDEP/SEED are added on initialisation
 
   no.add_wrapped(wrap_pyfunction!(name))?;
   no.add_wrapped(wrap_pyfunction!(version))?;
@@ -124,8 +123,21 @@ pub fn init_embedded(py: Python) -> PyResult<&PyModule> {
   no.add_class::<Timeline>()?;
 
   // now add numpy
-  let _np = get_array_module(py)?;
+  //let _np = get_array_module(py)?;
+
+  // MC
+  no.add_class::<MonteCarlo>()?;
   Ok(no)
+}
+
+pub fn init_mc<'py>(py: Python, indep: bool, no: &'py PyModule) -> &'py mut MonteCarlo /*PyResult<PyObject>*/ { 
+  // init the MC engine
+  let mc = PyRefMut::new(py, MonteCarlo::new(env::rank(), env::size(), indep)).unwrap();
+  // expose it to python
+  no.add("mc", mc).unwrap();
+  //
+  //Ok(no.get("mc")?.to_object(py))
+  /* let mc_rs: &mut MonteCarlo =*/ no.get("mc").unwrap().extract().unwrap()
 }
   
 fn add_module(py: Python, module: &PyModule) {

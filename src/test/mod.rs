@@ -6,6 +6,7 @@ mod test {
   //use super::*;
   use crate::timeline::{Timeline, isnever, NEVER, DISTANT_PAST, FAR_FUTURE};
   use crate::neworder as no;
+  use crate::montecarlo::MonteCarlo;
   use crate::callback::Callback;
   use crate::env;
   
@@ -116,7 +117,7 @@ mod test {
     assert_eq!(notimeline.at_checkpoint(), true);
     assert_eq!(notimeline.at_end(), true);
 
-
+    // TODO test Timeline in sync in python
   }
 
   #[test]
@@ -322,4 +323,52 @@ mod test {
     //   //no::log("allgather element %%=%%"_s % i % agv[i]);
     // }
   }
+
+
+  #[test]
+  fn test_mc() {
+
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+  
+    let neworder = no::init_embedded(py).unwrap();
+    //let locals = [("neworder", neworder)].into_py_dict(py);
+    let mc_rs = no::init_mc(py, true, neworder);
+    let mc_py = neworder.get("mc").unwrap().to_object(py); //unwrap();
+
+    //const py::object& mc = neworder.attr("mc"); 
+    assert!(mc_py.getattr(py, "indep").unwrap().call0(py).unwrap().extract::<bool>(py).unwrap());
+    assert_eq!(mc_py.getattr(py, "seed").unwrap().call0(py).unwrap().extract::<u32>(py).unwrap(), 19937);
+    assert!(mc_rs.indep(), true);
+    assert_eq!(mc_rs.seed(), (19937 * env::size() + env::rank()) as u32);
+    
+    // // check MC object state is shared between C++ and python
+    // py::array_t<double> h01_cpp = env.mc().ustream(2);
+    //let h01_rs = mc_rs.ustream(py, 2); segfault!
+    // py::array_t<double> h23_py = mc.attr("ustream")(2);
+    // // values should not match (0,1) != (2,3)
+    // CHECK(np::at<double>(h01_cpp, 0) != np::at<double>(h23_py, 0));
+    // CHECK(np::at<double>(h01_cpp, 1) != np::at<double>(h23_py, 1));
+    // // reset from C++
+    // env.mc().reset();
+    // // sample from python
+    // py::array_t<double> h01_py = mc.attr("ustream")(2);
+    // // values should now match (0,1) == (0,1)
+    // CHECK(np::at<double>(h01_cpp, 0) == np::at<double>(h01_py, 0));
+    // CHECK(np::at<double>(h01_cpp, 1) == np::at<double>(h01_py, 1));
+    // // sample from C++
+    // py::array_t<double> h23_cpp = env.mc().ustream(2);
+    // // values should match  
+    // CHECK(np::at<double>(h23_cpp, 0) == np::at<double>(h23_py, 0));
+    // CHECK(np::at<double>(h23_cpp, 1) == np::at<double>(h23_py, 1));
+    // // reset from python
+    // mc.attr("reset")();
+    // // sample from C++
+    // h01_cpp = env.mc().ustream(2);
+    // // values should still match (0,1) == (0,1)
+    // CHECK(np::at<double>(h01_cpp, 0) == np::at<double>(h01_py, 0));
+    // CHECK(np::at<double>(h01_cpp, 1) == np::at<double>(h01_py, 1));
+    
+  }
+
 }
