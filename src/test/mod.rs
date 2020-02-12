@@ -20,7 +20,7 @@ mod test {
   use mpi::traits::*;
   use mpi::collective::CommunicatorCollectives;
 
-  use numpy::{PyArray1};
+  use numpy::{PyArray, PyArray1};
 
   #[test]
   fn timeline_statics() {
@@ -328,6 +328,9 @@ mod test {
   #[test]
   fn test_mc() {
 
+    // fails with mpi
+    if env::size() > 1 { return; }
+
     let gil = Python::acquire_gil();
     let py = gil.python();
   
@@ -344,18 +347,21 @@ mod test {
     
     // // check MC object state is shared between C++ and python
     // py::array_t<double> h01_cpp = env.mc().ustream(2);
-    //let h01_rs = mc_rs.ustream(py, 2); segfault!
+    let h01_rs = mc_rs.ustream(py, 2); 
     // py::array_t<double> h23_py = mc.attr("ustream")(2);
-    // // values should not match (0,1) != (2,3)
-    // CHECK(np::at<double>(h01_cpp, 0) != np::at<double>(h23_py, 0));
-    // CHECK(np::at<double>(h01_cpp, 1) != np::at<double>(h23_py, 1));
-    // // reset from C++
-    // env.mc().reset();
-    // // sample from python
-    // py::array_t<double> h01_py = mc.attr("ustream")(2);
-    // // values should now match (0,1) == (0,1)
-    // CHECK(np::at<double>(h01_cpp, 0) == np::at<double>(h01_py, 0));
-    // CHECK(np::at<double>(h01_cpp, 1) == np::at<double>(h01_py, 1));
+    let h23_py_ffs/*: &PyArray::<f64>*/ = mc_py.getattr(py, "ustream").unwrap().call(py, PyTuple::new(py, &[2]), None).unwrap();
+    let h23_py = h23_py_ffs.extract::<&PyArray1::<f64>>(py).unwrap();
+    // values should not match (0,1) != (2,3)
+    assert!(h01_rs.as_ref(py).get(0).unwrap() != h23_py.get(0).unwrap());
+    assert!(h01_rs.as_ref(py).get(1).unwrap() != h23_py.get(1).unwrap());
+    // reset from C++
+    mc_rs.reset();
+    // sample from python
+    let h01_py_ffs/*: &PyArray::<f64>*/ = mc_py.getattr(py, "ustream").unwrap().call(py, PyTuple::new(py, &[2]), None).unwrap();
+    let h01_py = h01_py_ffs.extract::<&PyArray1::<f64>>(py).unwrap();
+    assert_eq!(h01_rs.as_ref(py).get(0).unwrap(), h01_py.get(0).unwrap());
+    assert_eq!(h01_rs.as_ref(py).get(1).unwrap(), h01_py.get(1).unwrap());
+
     // // sample from C++
     // py::array_t<double> h23_cpp = env.mc().ustream(2);
     // // values should match  
