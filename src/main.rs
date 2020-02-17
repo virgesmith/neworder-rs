@@ -5,21 +5,18 @@ use pyo3::prelude::*;
 use pyo3::{Python, PyResult}; //, AsPyPointer};
 use pyo3::types::*; 
 
-use mpi::topology::Rank;
-
 use argparse::{ArgumentParser, StoreFalse, Collect};
 
 mod neworder;
 mod env;
 mod timeline;
-mod callback;
+mod python;
 mod test;
 mod montecarlo;
 
 use std::time::{/*Duration, */Instant};
 
-
-use callback::{Callback, CallbackDict, CallbackList};
+use python::{Runtime, CommandType, CommandDict, CommandList};
 use timeline::Timeline;
 
 fn append_model_paths(paths: &[String]) {
@@ -68,8 +65,7 @@ fn run<'py>(py: Python<'py>, independent: bool) -> PyResult<()> {
   let no = neworder::init_embedded(py)?;
 
   // init the MC engine
-  let mc = neworder::init_mc(py, independent, no);
-  //
+  neworder::init_mc(py, independent, no);
   let mc = no.get("mc")?.to_object(py);
   let indep = mc.getattr(py, "indep")?.call0(py)?.extract::<bool>(py)?;
   let seed = mc.getattr(py, "seed")?.call0(py)?.extract::<u32>(py)?;
@@ -126,60 +122,62 @@ fn run<'py>(py: Python<'py>, independent: bool) -> PyResult<()> {
 
   }
 
+  // get the python rumtime
+  let runtime = Runtime::new(py, globals, Some(locals));
+
   // modifiers: (optional) list of exec, one per process
   let modifiers = match no.get("modifiers") {
     Ok(o) => {
       let list = o.downcast_ref::<PyList>()?;
       // TODO something more functional?
-      let mut cbs = CallbackList::new();
+      let mut cbs = CommandList::new();
       for item in list {
-        let code = item.extract::<String>()?; 
-        cbs.push(Callback::exec(code, globals, Some(locals)));
+        let code = item.extract::<&str>()?; 
+        cbs.push((&code, CommandType::Exec));
       }
       assert!(cbs.len() == env::size() as usize || cbs.len() == 0, "modifier array must either empty or have an entry for each process");
       cbs
     },
-    Err(_) => CallbackList::new()
+    Err(_) => CommandList::new()
   };
 
   // transitions: dict of exec
   let transitions: &PyDict = no.get("transitions")?.downcast_ref()?;
-  let mut transition_callbacks = CallbackDict::new();
+  let mut transition_callbacks = CommandDict::new();
   for (k, v) in transitions {
-    let name = k.extract::<String>()?;
-    let code = v.extract::<String>()?;
-    transition_callbacks.insert(name, Callback::exec(code, globals, Some(locals)));   
+    let name = k.extract::<&str>()?;
+    let code = v.extract::<&str>()?;
+    transition_callbacks.insert(name, (code, CommandType::Exec));   
   }
 
   // checks: (optional) dict of eval
   let checks = match no.get("checks") {
     Ok(o) => {
       let dict = o.downcast_ref::<PyDict>()?;
-      let mut cbs = CallbackDict::new();
+      let mut cbs = CommandDict::new();
       for (k, v) in dict {
-        let name = k.extract::<String>()?;
-        let code = v.extract::<String>()?;
-        cbs.insert(name, Callback::eval(code, globals, Some(locals)));            
+        let name = k.extract::<&str>()?;
+        let code = v.extract::<&str>()?;
+        cbs.insert(name, (code, CommandType::Eval));            
       }
       cbs
     },
-    Err(_) => CallbackDict::new()
+    Err(_) => CommandDict::new()
   };
 
   // checckpoints: dict of exec
   let checkpoints: &PyDict = no.get("checkpoints")?.downcast_ref()?;
-  let mut checkpoint_callbacks = CallbackDict::new();
+  let mut checkpoint_callbacks = CommandDict::new();
   for (k, v) in checkpoints {
-    let name = k.extract::<String>()?;
-    let code = v.extract::<String>()?; //downcast_ref::<PyString>()?.to_string()?.to_string();
-    checkpoint_callbacks.insert(name, Callback::exec(code, globals, Some(locals)));   
+    let name = k.extract::<&str>()?;
+    let code = v.extract::<&str>()?; //downcast_ref::<PyString>()?.to_string()?.to_string();
+    checkpoint_callbacks.insert(name, (code, CommandType::Exec));   
   }
   
   if modifiers.len() > 0 {
-    neworder::log(&format!("applying modifier to process {}: {}", env::rank(), modifiers[env::rank() as usize].code_()));
-    modifiers[env::rank() as usize].run(py)?;
+    neworder::log(&format!("applying modifier to process {}: {}", env::rank(), modifiers[env::rank() as usize].0));
+    runtime.run(&modifiers[env::rank() as usize])?;
   }
-
 
   // TODO how to get ptr to python impl as rust type?
   //let mut timeline: Timeline = Py::<Timeline>::from_borrowed_ptr(no.get("timeline")?.as_ptr()).as_ref(py).into(); //.get();
@@ -197,13 +195,13 @@ fn run<'py>(py: Python<'py>, independent: bool) -> PyResult<()> {
     // implement transitions
     for (k, v) in &transition_callbacks {
       neworder::log(&format!("t={}({}) transition {}", t, i, k));
-      v.run(py)?;
+      runtime.run(v)?;
     }
 
     // 
     for (k, v) in &checks {
       neworder::log(&format!("t={}({}) check {}", t, i, k));
-      match v.run(py)?.extract::<bool>(py)? {
+      match runtime.run(v)?.extract::<bool>(py)? {
         true => (),
         false => panic!("check failed")
       }
@@ -211,9 +209,9 @@ fn run<'py>(py: Python<'py>, independent: bool) -> PyResult<()> {
 
     //if pytimeline.getattr(py, "at_checkpoint")?.call0(py)?.extract::<bool>(py)? {
     if timeline.at_checkpoint() {
-      for (k,v) in &checkpoint_callbacks {
+      for (k, v) in &checkpoint_callbacks {
         neworder::log(&format!("t={}({}) checkpoint {}", t, i, k));
-        v.run(py)?;  
+        runtime.run(v)?;  
       }
     }
 

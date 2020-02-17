@@ -49,7 +49,7 @@ no.initialisations = {
   "greeter": { "module": "greet", "class_": "Greet", "args": ("x", "y", "z") }
 }
 
-no.modifiers = [ "pass" ] 
+no.modifiers = [ ] 
 
 no.transitions = { } #TODO fix"who": "greeter.get_name()" }
 

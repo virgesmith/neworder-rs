@@ -50,8 +50,8 @@ impl MonteCarlo {
     self.rng.reset();
   }
 
-  pub fn ustream(&mut self, py: Python, n: usize) -> Py<PyArray1::<f64>> {
-    PyArray1::from_vec(py, self.rng.uniforms01(n)).to_owned()
+  pub fn ustream(&mut self, n: usize) -> Vec::<f64> {
+    self.rng.uniforms01(n)
   }
 
 //   #[pyfunction]

@@ -6,8 +6,8 @@ mod test {
   //use super::*;
   use crate::timeline::{Timeline, isnever, NEVER, DISTANT_PAST, FAR_FUTURE};
   use crate::neworder as no;
-  use crate::montecarlo::MonteCarlo;
-  use crate::callback::Callback;
+  //use crate::montecarlo::MonteCarlo;
+  use crate::python;
   use crate::env;
   
   use pyo3::prelude::*;
@@ -16,11 +16,11 @@ mod test {
 
   //use mpi::point_to_point as p2p;
   use mpi::point_to_point::{Source, Destination};
-  use mpi::topology::Rank;
+  //use mpi::topology::Rank;
   use mpi::traits::*;
-  use mpi::collective::CommunicatorCollectives;
+  //use mpi::collective::CommunicatorCollectives;
 
-  use numpy::{PyArray, PyArray1};
+  use numpy::{PyArray1};
 
   #[test]
   fn timeline_statics() {
@@ -122,7 +122,11 @@ mod test {
 
   #[test]
   fn test_no() {
-    // test logging - use {, true} to make it look like function returning bool. If a problem, there will be an exception or worse
+    // /*no::Environment& env =*/ no::getenv();
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+      // test logging - use {, true} to make it look like function returning bool. If a problem, there will be an exception or worse
     assert!({no::log("neworder module test"); true}, "log message");
     assert!({no::log(&format!("test logging types: {} {} {} {} {:?} {}", false, 0, 0.0, "", vec![0; 10], true)); true}, "log data");
 
@@ -137,13 +141,10 @@ mod test {
     // CHECK(format::hex<int32_t>(24233) == "0x00005ea9");
     // CHECK(format::hex<size_t>(133, false) == "0000000000000085");
     // CHECK(format::boolean(false) == "false");
-    
-    // /*no::Environment& env =*/ no::getenv();
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-  
+      
     let neworder = no::init_embedded(py).unwrap();
     let locals = [("neworder", neworder)].into_py_dict(py);
+    let runtime = python::Runtime::new(py, None, Some(locals));
 
     // Check required (but defaulted) attrs visible from both rust and python
     let attrs = ["rank", "size"];
@@ -155,7 +156,7 @@ mod test {
         Ok(_) => true,
         Err(_) => false
       });
-      assert!(Callback::eval(format!("'{}' in dir(neworder)", a), None, Some(locals)).run(py).unwrap().is_true(py).unwrap(), "attr seen by python");
+      assert!(runtime.run(&(&format!("'{}' in dir(neworder)", a), python::CommandType::Eval)).unwrap().extract::<bool>(py).unwrap(), "attr seen by python");
     }
     // for (size_t i = 0; i < sizeof(attrs)/sizeof(attrs[0]); ++i)
     // {
@@ -168,9 +169,7 @@ mod test {
     assert_eq!(format!("{}", neworder.call0("never").unwrap()), "nan");
 
     // Check diagnostics consistent
-    assert_eq!(
-      format!("{}", Callback::eval("neworder.name()".to_string(), None, Some(locals)).run(py).unwrap().as_ref(py).str().unwrap()),
-      no::name());
+    assert_eq!(format!("{}", runtime.run(&("neworder.name()", python::CommandType::Eval)).unwrap().extract::<&str>(py).unwrap()), no::name());
     // CHECK(no::Callback::eval("version() == '%%'"_s % no::module_version())().cast<bool>());
     // CHECK(no::Callback::eval("python() == '%%'"_s % no::python_version()/*.c_str()*/)().cast<bool>());
 
@@ -231,98 +230,98 @@ mod test {
   //   return true;
   // }
 
-  #[test]
-  fn test_mpi()
-  {
-    assert!(env::size() > 1, "mpi is not enabled");
+  // #[test]
+  // fn test_mpi()
+  // {
+  //   assert!(env::size() > 1, "mpi is not enabled");
 
-    assert!(send0_recv1(false));
-    assert!(send0_recv1(19937));
-    assert!(send0_recv1(-1i64));
-    assert!(send0_recv1(71.25));
+  //   assert!(send0_recv1(false));
+  //   assert!(send0_recv1(19937));
+  //   assert!(send0_recv1(-1i64));
+  //   assert!(send0_recv1(71.25));
 
-    // how to send chars, strings and vectors 
-    assert!(send0_recv1('c' as u8)); // char Equivalence not implemented 
+  //   // how to send chars, strings and vectors 
+  //   assert!(send0_recv1('c' as u8)); // char Equivalence not implemented 
 
-    let a = vec![0;12];
-    if env::rank() == 0 {
-      //p2p::send(x, 1);
-      env::world().process_at_rank(1).send(&a[..]);
-      no::log(&format!("sent {} elements to 1", a.len()));
-    }
-    if env::rank() == 1 {
-      let (b, status) = env::world().process_at_rank(0).receive_vec::<i32>();
-      no::log(&format!("recd {} elements from 0", b.len()));
-    }
+  //   let a = vec![0;12];
+  //   if env::rank() == 0 {
+  //     //p2p::send(x, 1);
+  //     env::world().process_at_rank(1).send(&a[..]);
+  //     no::log(&format!("sent {} elements to 1", a.len()));
+  //   }
+  //   if env::rank() == 1 {
+  //     let (b, _status) = env::world().process_at_rank(0).receive_vec::<i32>();
+  //     no::log(&format!("recd {} elements from 0", b.len()));
+  //   }
 
-    // env::world().process_at_rank(1).send(&a[..]);
-    let a = "dhgsjdfg";
-    if env::rank() == 0 {
-      //p2p::send(x, 1);
-      env::world().process_at_rank(1).send(&a.as_bytes()[..]);
-      no::log(&format!("sent {:?} to 1", a));
-    }
-    if env::rank() == 1 {
-      let (b, status) = env::world().process_at_rank(0).receive_vec::<u8>();
-      no::log(&format!("recd {:?} from 0", std::str::from_utf8(&b).unwrap()));
-    }
-    // env::world().process_at_rank(1).send(&a.as_bytes()[..]);
-    // env::world().process_at_rank(1).send(&(a as u8));
+  //   // env::world().process_at_rank(1).send(&a[..]);
+  //   let a = "dhgsjdfg";
+  //   if env::rank() == 0 {
+  //     //p2p::send(x, 1);
+  //     env::world().process_at_rank(1).send(&a.as_bytes()[..]);
+  //     no::log(&format!("sent {:?} to 1", a));
+  //   }
+  //   if env::rank() == 1 {
+  //     let (b, _status) = env::world().process_at_rank(0).receive_vec::<u8>();
+  //     no::log(&format!("recd {:?} from 0", std::str::from_utf8(&b).unwrap()));
+  //   }
+  //   // env::world().process_at_rank(1).send(&a.as_bytes()[..]);
+  //   // env::world().process_at_rank(1).send(&(a as u8));
 
-    let mut x = 7122 + env::rank();
-    // sends the value to next process and receives from previous (wrapped)
-    x = env::rotate(x).unwrap();  
-    assert_eq!(x, 7122 + (env::size() + env::rank() - 1) % env::size());
+  //   let mut x = 7122 + env::rank();
+  //   // sends the value to next process and receives from previous (wrapped)
+  //   x = env::rotate(x).unwrap();  
+  //   assert_eq!(x, 7122 + (env::size() + env::rank() - 1) % env::size());
 
-    //env::sendrecv("const char*").unwrap();
-    // //CHECK(send_recv("const char*", env));
-    //send0_recv1(String::from("String").as_bytes());
-    // //CHECK(send_recv("std::string"_s, env));
+  //   //env::sendrecv("const char*").unwrap();
+  //   // //CHECK(send_recv("const char*", env));
+  //   //send0_recv1(String::from("String").as_bytes());
+  //   // //CHECK(send_recv("std::string"_s, env));
 
-    let mut i = match env::rank() {
-      0 => 12345,
-      _ => 0
-    };
-    env::broadcast_from(0, &mut i).unwrap();
-    // should now be 12345 on all 
-    assert_eq!(i, 12345);
+  //   let mut i = match env::rank() {
+  //     0 => 12345,
+  //     _ => 0
+  //   };
+  //   env::broadcast_from(0, &mut i).unwrap();
+  //   // should now be 12345 on all 
+  //   assert_eq!(i, 12345);
 
-    let x = 10 * env::rank() + env::size();
+  //   let x = 10 * env::rank() + env::size();
 
-    let a = match env::gather_into(0, &x) {
-      Some(a) => {
-        assert_eq!(env::rank(), 0);
-        assert!(a.iter().enumerate().all(|(r, &x)|  x == 10 * (r as Rank) + env::size()));
-      },
-      None => () 
-    };
+  //   match env::gather_into(0, &x) {
+  //     Some(a) => {
+  //       assert_eq!(env::rank(), 0);
+  //       assert!(a.iter().enumerate().all(|(r, &x)|  x == 10 * (r as Rank) + env::size()));
+  //     },
+  //     None => () 
+  //   };
 
-    // scatter
-    // a contains different values in each process
-    let a = vec![1 + env::rank() * env::rank(); env::size() as usize];
+  //   // scatter
+  //   // a contains different values in each process
+  //   let a = vec![1 + env::rank() * env::rank(); env::size() as usize];
 
-    let x = env::scatter_from(1, &a);
-    env::sync(); // required
-    // x contains the value 1+1*1
-    assert_eq!(x, 2);
+  //   let x = env::scatter_from(1, &a);
+  //   env::sync(); // required
+  //   // x contains the value 1+1*1
+  //   assert_eq!(x, 2);
 
-    let i = 2_u64.pow(env::rank() as u32 + 1);
-    let mut a = vec![0u64; env::size() as usize];
-    env::world().all_gather_into(&i, &mut a[..]);
-    assert!(a.iter().enumerate().all(|(a, &b)| b == 2u64.pow(a as u32 + 1)));
-    //no::log(&format!("allgather: {:?}", a));
+  //   let i = 2_u64.pow(env::rank() as u32 + 1);
+  //   let mut a = vec![0u64; env::size() as usize];
+  //   env::world().all_gather_into(&i, &mut a[..]);
+  //   assert!(a.iter().enumerate().all(|(a, &b)| b == 2u64.pow(a as u32 + 1)));
+  //   //no::log(&format!("allgather: {:?}", a));
 
-    // std::vector<double> agv(env.size(), -1.0);
-    // // give agv one positive element
-    // agv[env.rank()] = 10.0 * env.rank() + env.size();
-    // agv = no::mpi::allgather(agv);
-    // // agv now all positive
-    // for (size_t i = 0; i < agv.size(); ++i)
-    // {
-    //   CHECK(agv[i] == 10.0 * i + env.size());
-    //   //no::log("allgather element %%=%%"_s % i % agv[i]);
-    // }
-  }
+  //   // std::vector<double> agv(env.size(), -1.0);
+  //   // // give agv one positive element
+  //   // agv[env.rank()] = 10.0 * env.rank() + env.size();
+  //   // agv = no::mpi::allgather(agv);
+  //   // // agv now all positive
+  //   // for (size_t i = 0; i < agv.size(); ++i)
+  //   // {
+  //   //   CHECK(agv[i] == 10.0 * i + env.size());
+  //   //   //no::log("allgather element %%=%%"_s % i % agv[i]);
+  //   // }
+  // }
 
 
   #[test]
@@ -335,45 +334,51 @@ mod test {
     let py = gil.python();
   
     let neworder = no::init_embedded(py).unwrap();
-    //let locals = [("neworder", neworder)].into_py_dict(py);
+    let locals = [("neworder", neworder)].into_py_dict(py);
+
+    let runtime = python::Runtime::new(py, None, Some(locals));
+
     let mc_rs = no::init_mc(py, true, neworder);
     let mc_py = neworder.get("mc").unwrap().to_object(py); //unwrap();
 
+    // use eval to directly exec python...
+
     //const py::object& mc = neworder.attr("mc"); 
-    assert!(mc_py.getattr(py, "indep").unwrap().call0(py).unwrap().extract::<bool>(py).unwrap());
+    //assert!(mc_py.getattr(py, "indep").unwrap().call0(py).unwrap().extract::<bool>(py).unwrap());
+    assert!(runtime.run(&("neworder.mc.indep()", python::CommandType::Eval)).unwrap().extract::<bool>(py).unwrap());
+    assert_eq!(runtime.run(&("neworder.mc.seed()", python::CommandType::Eval)).unwrap().extract::<u32>(py).unwrap(), 19937);
     assert_eq!(mc_py.getattr(py, "seed").unwrap().call0(py).unwrap().extract::<u32>(py).unwrap(), 19937);
     assert!(mc_rs.indep(), true);
     assert_eq!(mc_rs.seed(), (19937 * env::size() + env::rank()) as u32);
     
-    // // check MC object state is shared between C++ and python
-    // py::array_t<double> h01_cpp = env.mc().ustream(2);
-    let h01_rs = mc_rs.ustream(py, 2); 
+    // check MC object state is shared between C++ and python
+    let h01_rs = mc_rs.ustream(2); 
     // py::array_t<double> h23_py = mc.attr("ustream")(2);
-    let h23_py_ffs/*: &PyArray::<f64>*/ = mc_py.getattr(py, "ustream").unwrap().call(py, PyTuple::new(py, &[2]), None).unwrap();
-    let h23_py = h23_py_ffs.extract::<&PyArray1::<f64>>(py).unwrap();
+    // let h23_py_ffs/*: &PyArray::<f64>*/ = mc_py.getattr(py, "ustream").unwrap().call(py, PyTuple::new(py, &[2]), None).unwrap();
+    // let h23_py = h23_py_ffs.extract::<&PyArray1::<f64>>(py).unwrap();
+    let h23_py = runtime.run(&("neworder.mc.ustream(2)", python::CommandType::Eval)).unwrap().extract::<Vec<f64>>(py).unwrap();
     // values should not match (0,1) != (2,3)
-    assert!(h01_rs.as_ref(py).get(0).unwrap() != h23_py.get(0).unwrap());
-    assert!(h01_rs.as_ref(py).get(1).unwrap() != h23_py.get(1).unwrap());
-    // reset from C++
+    assert!(h01_rs[0] != h23_py[0]);
+    assert!(h01_rs[1] != h23_py[1]);
+    // reset from rust
     mc_rs.reset();
     // sample from python
-    let h01_py_ffs/*: &PyArray::<f64>*/ = mc_py.getattr(py, "ustream").unwrap().call(py, PyTuple::new(py, &[2]), None).unwrap();
-    let h01_py = h01_py_ffs.extract::<&PyArray1::<f64>>(py).unwrap();
-    assert_eq!(h01_rs.as_ref(py).get(0).unwrap(), h01_py.get(0).unwrap());
-    assert_eq!(h01_rs.as_ref(py).get(1).unwrap(), h01_py.get(1).unwrap());
+    let h01_py = runtime.run(&("neworder.mc.ustream(2)", python::CommandType::Eval)).unwrap().extract::<Vec<f64>>(py).unwrap();
+    assert_eq!(h01_rs[0], h01_py[0]);
+    assert_eq!(h01_rs[1], h01_py[1]);
 
-    // // sample from C++
-    // py::array_t<double> h23_cpp = env.mc().ustream(2);
-    // // values should match  
-    // CHECK(np::at<double>(h23_cpp, 0) == np::at<double>(h23_py, 0));
-    // CHECK(np::at<double>(h23_cpp, 1) == np::at<double>(h23_py, 1));
-    // // reset from python
-    // mc.attr("reset")();
-    // // sample from C++
-    // h01_cpp = env.mc().ustream(2);
+    // sample from rust
+    let h23_rs = mc_rs.ustream(2);
+    // values should match  
+    assert_eq!(h23_rs[0], h23_py[0]);
+    assert_eq!(h23_rs[1], h23_py[1]);
+    // reset from python
+    runtime.run(&("neworder.mc.reset()", python::CommandType::Exec)).unwrap();
+    // sample from rust
+    let h01_rs = mc_rs.ustream(2);
     // // values should still match (0,1) == (0,1)
-    // CHECK(np::at<double>(h01_cpp, 0) == np::at<double>(h01_py, 0));
-    // CHECK(np::at<double>(h01_cpp, 1) == np::at<double>(h01_py, 1));
+    assert_eq!(h01_rs[0], h01_py[0]);
+    assert_eq!(h01_rs[1], h01_py[1]);
     
   }
 
