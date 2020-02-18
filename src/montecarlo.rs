@@ -1,12 +1,11 @@
 
-use pyo3::{Python, Py, PyResult};
 use pyo3::prelude::*;
-use numpy::PyArray1;
 use rand::gen::pseudo::MT19937;
 use rand::gen::RandomStream;
 use rand::gen::Resettable;
 use mpi::topology::Rank;
 
+use numpy::PyArray1;
 
 const BASE_SEED: u32 = 19937;
 
@@ -33,6 +32,16 @@ impl MonteCarlo {
     let seed = compute_seed(rank, size, indep);
     MonteCarlo{ indep: indep, seed: seed, rng: MT19937::new(Some(seed)) }
   }
+
+  // [arg] the trait `pyo3::type_object::PyTypeInfo` is not implemented for `std::vec::Vec<f64>
+  fn hazard_a(&mut self, probs: &[f64]) -> Vec<f64> {
+    self.rng.uniforms01(probs.len()).iter().zip(probs).map(|(x, p)| match x < p { true => 1.0, false => 0.0 }).collect()
+  }
+
+  fn stopping_a(&mut self, probs: &[f64]) -> Vec<f64> {
+    //return np::unary_op<double, double>(prob, [&](double p) { return -::log(dist(m_prng)) / p; });
+    self.rng.uniforms01(probs.len()).iter().zip(probs).map(|(x, p)| -(x.ln() / p) ).collect()
+  }
 }
 
 #[pymethods]
@@ -52,46 +61,28 @@ impl MonteCarlo {
 
   pub fn ustream(&mut self, n: usize) -> Vec::<f64> {
     self.rng.uniforms01(n)
+  } 
+
+  // simple hazard constant probability 
+  fn hazard(&mut self, prob: f64, n: usize) -> Vec<f64> {
+    self.rng.uniforms01(n).iter().map(|x| match x < &prob { true => 1.0, false => 0.0 }).collect()
   }
 
-//   #[pyfunction]
-// fn ustream(py: Python, n: usize) -> Py<PyArray1::<f64>> {
+  // [arg] the trait `pyo3::type_object::PyTypeInfo` is not implemented for `std::vec::Vec<f64>
+  #[name="hazard_a"]
+  fn hazard_a_py(&mut self, probs: &PyArray1::<f64>) -> Vec<f64> {
+    self.hazard_a(probs.as_slice().unwrap())
+  }
 
-//   //PyArray1::from_vec(py, vec![0.0;n]).to_owned()
-//   let res = PyArray1::from_vec(py, vec![0.0;n]);
-//   res.to_owned()
+  fn stopping(&mut self, prob: f64, n: usize) -> Vec<f64> {
+    let rp = 1.0 / prob;
+    self.rng.uniforms01(n).iter().map(|x| -(x.ln() * rp)).collect()
+  }
 
-// }
-
-
-  // // simple hazard constant probability 
-  // fn hazard(&mut self, prob: f64, n: usize) -> Vec<f64> {
-  //   self.rng.uniforms01(n).iter().map(|x| match x < &prob { true => 1.0, false => 0.0 }).collect()
-  // }
-
-  // fn hazard_a(&self, probs: &Vec<f64>) -> Vec<f64> {
-  //   self.rng.uniforms01(probs.len()).iter().zip(probs.iter()).map(|(x, p)| match x < p { true => 1.0, false => 0.0 }).collect()
-  // }
-
-  // fn stopping(&mut self, prob: f64, n: usize) -> Vec<f64> {
-  //   let rp = 1.0 / prob;
-  //   self.rng.uniforms01(n).iter().map(|x| -(x.ln() * rp)).collect()
-  // }
-
-  // // computes stopping times 
-  // NEWORDER_EXPORT np::array no::MonteCarlo::stopping(double prob, size_t n)
-  // {
-  //   std::uniform_real_distribution<> dist(0.0, 1.0);
-  //   double rprob = 1.0 / prob;
-
-  //   return np::make_array<double>(n, [&]() { return -::log(dist(m_prng)) * rprob; });
-  // }
-
-  // np::array no::MonteCarlo::stopping(const np::array& prob)
-  // {
-  //   std::uniform_real_distribution<> dist(0.0, 1.0);
-
-  //   return np::unary_op<double, double>(prob, [&](double p) { return -::log(dist(m_prng)) / p; });
-  // }
+  // [arg] the trait `pyo3::type_object::PyTypeInfo` is not implemented for `std::vec::Vec<f64>
+  #[name="stopping_a"]
+  fn stopping_a_py(&mut self, probs: &PyArray1::<f64>) -> Vec<f64> {
+    self.stopping_a(probs.as_slice().unwrap())
+  }
 }
 

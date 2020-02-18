@@ -59,6 +59,11 @@ impl Timeline {
     self.index += 1;
   }
 
+  #[name="next"]
+  fn next_n(&mut self, n: u32 ) {
+    self.index += n;
+  }
+
   // curent timestep index
   pub fn index(&self) -> u32 {
     self.index
