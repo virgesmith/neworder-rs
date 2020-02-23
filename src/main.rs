@@ -35,6 +35,13 @@ fn main() -> Result<(), ()> {
   let mut independent = true;
   let mut paths = Vec::new();
 
+  match (std::env::var("VIRTUAL_ENV"), std::env::var("CONDA_DEFAULT_ENV")) {
+    (Err(_), Err(_)) | (Ok(_), Ok(_)) => panic!("neworder needs to run in either a virtualenv or a conda env"),
+    _ => ()
+  }
+
+  
+
   // this block limits scope of (mutable) borrows by ap.refer() method
   {
     let mut ap = ArgumentParser::new();
@@ -76,15 +83,22 @@ fn run<'py>(py: Python<'py>, independent: bool) -> PyResult<()> {
     neworder::name(), indep, seed, &pyinfo)); 
   neworder::log(&format!("PYTHONPATH={}", std::env::var("PYTHONPATH").unwrap()));
   
-  let _config = py.import("config").expect("module config was not imported successfully");
+  let config = py.import("config").expect("module config was not imported successfully");
   //neworder::log(&format!("{}", py.eval("dir(testmodule)", None, None)?));
   //neworder::log(&test.call0("func")?.str()?.to_string()?);
   //neworder::log(&format!("{}", config.call0("func")?));
 
   let globals = None;
   let locals = PyDict::new(py); 
-  locals.set_item("neworder", no)?;
 
+  // pull everything defined in config into the root namespace
+  // this should include neworder
+  for (k, v) in config.dict().iter() {
+    locals.set_item(k, v)?;
+  }
+  // TODO either import confoig module, or
+  // loop over items in config and import them along the lins of:
+  //locals.set_item("nsims", config.dict().get_item("nsims"))?;
   // initialisations: evaluated immediately
   let initialisations: &PyDict = no.get("initialisations")?.downcast_ref()?;
   for (k, v) in initialisations.iter() {
@@ -124,6 +138,7 @@ fn run<'py>(py: Python<'py>, independent: bool) -> PyResult<()> {
 
   // get the python rumtime
   let runtime = Runtime::new(py, globals, Some(locals));
+  //runtime.run(&("neworder.log(locals())", CommandType::Exec))?;
 
   // modifiers: (optional) list of exec, one per process
   let modifiers = match no.get("modifiers") {
@@ -175,7 +190,7 @@ fn run<'py>(py: Python<'py>, independent: bool) -> PyResult<()> {
   }
   
   if modifiers.len() > 0 {
-    neworder::log(&format!("applying modifier to process {}: {}", env::rank(), modifiers[env::rank() as usize].0));
+    neworder::log(&format!("applying modifier: {}", modifiers[env::rank() as usize].0));
     runtime.run(&modifiers[env::rank() as usize])?;
   }
 
@@ -195,7 +210,7 @@ fn run<'py>(py: Python<'py>, independent: bool) -> PyResult<()> {
     // implement transitions
     for (k, v) in &transition_callbacks {
       neworder::log(&format!("t={}({}) transition {}", t, i, k));
-      runtime.run(v)?;
+      runtime.run(v).expect("transition failed");
     }
 
     // 
@@ -219,6 +234,9 @@ fn run<'py>(py: Python<'py>, independent: bool) -> PyResult<()> {
     if timeline.at_end() { break; }
   }
   neworder::log(&format!("Completed. exec time(s)={}", start_time.elapsed().as_secs_f64()));
+
+  // wait for all processes to finish
+  env::sync();
   
   Ok(())
 }

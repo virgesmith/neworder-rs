@@ -1,11 +1,13 @@
 
+use crate::timeline;
 use pyo3::prelude::*;
 use rand::gen::pseudo::MT19937;
-use rand::gen::RandomStream;
-use rand::gen::Resettable;
+use rand::gen::{RandomStream, Dimensionless, Resettable};
 use mpi::topology::Rank;
 
 use numpy::PyArray1;
+
+use std::cmp;
 
 const BASE_SEED: u32 = 19937;
 
@@ -42,6 +44,128 @@ impl MonteCarlo {
     //return np::unary_op<double, double>(prob, [&](double p) { return -::log(dist(m_prng)) / p; });
     self.rng.uniforms01(probs.len()).iter().zip(probs).map(|(x, p)| -(x.ln() / p) ).collect()
   }
+  
+//   // multiple-arrival (0+) process 
+// np::array no::MonteCarlo::arrivals(const np::array& lambda_t, double dt, double gap, size_t n)
+// {
+//   std::uniform_real_distribution<> dist(0.0, 1.0);
+
+//   const double* pl = np::cbegin<double>(lambda_t);
+//   size_t nl = lambda_t.size();
+
+//   // validate lambdas - but what exactly is valid?
+//   if (pl[nl-1] != 0.0)
+//   {
+//     throw std::runtime_error("Multiple-arrival Non-homogeneous Poisson process requires a zero final hazard rate");
+//   }
+
+//   // What is the optimal lambda_u? For now largest value
+//   double lambda_u = *std::max_element(pl, pl + nl);
+//   double lambda_i;
+
+//   std::vector<std::vector<double>> times(n);
+
+//   double tmax = (nl - 1) * dt;
+//   size_t imax = 0;
+
+//   for (size_t i = 0; i < n; ++i)
+//   {
+//     // rejection sampling
+//     double pt = 0.0;
+//     do 
+//     {
+//       do 
+//       {
+//         pt += -::log(dist(m_prng)) / lambda_u;
+//         // final entry in lambda_t is flat extrapolated...
+//         lambda_i = pl[ std::min((size_t)(pt / dt), nl-1) ];
+//         if (pt > tmax && lambda_i == 0.0)
+//         {
+//           pt = no::Timeline::never();
+//           break;
+//         }
+//       } while (dist(m_prng) > lambda_i / lambda_u);
+//       times[i].push_back(pt);
+//       pt += gap;
+//     } while (pt < tmax);
+//     imax = std::max(times[i].size(), imax);
+//     //no::log("%%: %%"_s % i % times[i]);
+//   }
+
+//   np::array nptimes = np::empty<double>({n, imax- 1});
+//   np::fill(nptimes, no::Timeline::never());
+//   double* pa = np::begin<double>(nptimes);
+
+//   for (size_t i = 0; i < times.size(); ++i)
+//   {
+//     for (size_t j = 0; j < times[i].size() - 1; ++j)
+//     {
+//       pa[j] = times[i][j];
+//     }
+//     pa += imax - 1;
+//   }
+
+//   return nptimes;
+// }
+  pub fn first_arrival(&mut self, lambda_t: &[f64], dt: f64, n: usize, minval: f64)
+  {
+    let nl = lambda_t.len();
+    let lambda_u = lambda_t.iter().fold(std::f64::NEG_INFINITY, |a, &b| a.max(b));
+    let mut lambda_i;
+
+    let mut times = vec![0.0; n];
+    let tmax = (nl - 1) as f64 * dt;
+
+    for i in 0..n {
+      times[i] = minval;
+      loop {
+        times[i] += -self.rng.uniform01().ln() / lambda_u;
+
+        lambda_i = lambda_t[cmp::min((times[i] / dt) as usize, nl-1)];
+        // deal with open case (event not certain to happen)
+        if times[i] > tmax && lambda_i == 0.0 {
+          times[i] = timeline::NEVER;
+          break;
+        }
+        if self.rng.uniform01() <= lambda_i / lambda_u { break; }
+      } 
+    }
+  }
+// np::array no::MonteCarlo::first_arrival(const np::array& lambda_t, double dt, size_t n, double minval)
+// {
+//   std::uniform_real_distribution<> dist(0.0, 1.0);
+
+//   const double* pl = np::cbegin<double>(lambda_t);
+//   size_t nl = lambda_t.size();
+
+//   // What is the optimal lambda_u? For now largest value
+//   double lambda_u = *std::max_element(pl, pl + nl);
+//   double lambda_i;
+
+//   np::array times = np::empty_1d_array<double>(n);
+//   double* pt = np::begin<double>(times);
+//   double tmax = (nl - 1) * dt;
+
+//   for (size_t i = 0; i < n; ++i)
+//   {
+//     // rejection sampling
+//     pt[i] = minval;
+//     do 
+//     {
+//       pt[i] += -::log(dist(m_prng)) / lambda_u;
+//       // final entry in lambda_t is flat extrapolated...
+//       lambda_i = pl[ std::min((size_t)(pt[i] / dt), nl-1) ];
+//       // deal with open case (event not certain to happen)
+//       if (pt[i] > tmax && lambda_i == 0.0)
+//       {
+//         pt[i] = no::Timeline::never();
+//         break;
+//       }
+//     } while (dist(m_prng) > lambda_i / lambda_u);
+//   }
+//   return times;
+// }
+
 }
 
 #[pymethods]

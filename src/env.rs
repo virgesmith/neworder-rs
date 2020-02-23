@@ -76,13 +76,14 @@ pub fn scatter_from<T: Zero + mpi::datatype::Equivalence>(from: Rank, data: &Vec
 }
 
 // Returns an Option containing an array in rank() == to
-pub fn gather_into<T: mpi::datatype::Equivalence>(into: Rank, data: &T) -> Option<Vec<T>> { 
+pub fn gather_into<T: mpi::datatype::Equivalence + Clone + Zero>(into: Rank, data: &T) -> Option<Vec<T>> { 
 
   let dst = world().process_at_rank(into);
 
   match rank() == into {
     true => {
-      let mut a = Vec::with_capacity(size() as usize);
+      //let mut a = Vec::with_capacity(size() as usize);
+      let mut a = vec![T::zero(); size() as usize];
       dst.gather_into_root(data, &mut a[..]);
       Some(a)
     },
@@ -95,8 +96,8 @@ pub fn gather_into<T: mpi::datatype::Equivalence>(into: Rank, data: &T) -> Optio
 
 
 pub fn sync() {
-  no::log("waiting...");
+  no::log("waiting for sync...");
   world().barrier();
-  no::log("...resuming");
+  no::log("...synced, resuming");
 }
 

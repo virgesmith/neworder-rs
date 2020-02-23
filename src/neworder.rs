@@ -3,7 +3,9 @@ use pyo3::prelude::*;
 use pyo3::{Python, PyResult};
 //use pyo3::types::{PyAny, PyString};
 use pyo3::wrap_pyfunction;
-use pyo3::types::{PyModule, PyDict, PyTuple, PyString};
+use pyo3::types::{PyModule, PyDict, PyList, PyTuple, PyString};
+
+use numpy::PyArray1;
 
 //use numpy::array::get_array_module;
 use mpi::topology::Rank;
@@ -91,9 +93,38 @@ fn isnever_py(t: f64) -> bool {
   isnever(t)
 }
 
+#[pyfunction]
+#[name="sync"]
+fn sync_py() {
+  env::sync()
+}
+
+#[pyfunction]
+#[name="gather"]
+fn gather_py(py: Python, x: f64, rank: Rank) -> PyObject {
+  match env::gather_into(rank, &x) {
+    //Some(a) => PyArray1::<f64>::from_vec(py, a).to_owned(),
+    Some(a) => {
+      log(&format!("{:?}",a));
+      PyList::new(py, a).to_object(py)
+    },
+    None => py.None()
+  }
+}
+
 // #[pyfunction]
-// #[name="isnever"]
-// fn isnever_pyarray_py(a: PyArray1<f64>) -> Py<PyArray1<bool>> {
+// #[name="gather"]
+// fn gather_py(py: Python, x: f64, rank: Rank) -> Vec::<f64> {
+//   match env::gather_into(rank, &x) {
+//     Some(a) => a,
+//     None => Vec::new()
+//   }
+// }
+
+
+// #[pyfunction]
+// #[name="isnever_a"]
+// fn isnever_a_py(a: PyArray1<f64>) -> Py<PyArray1<bool>> {
 
 //   // where to get py from...TODO does this suffice?
 //   array_isnever(Python::acquire_gil().python(), &a)
@@ -127,6 +158,11 @@ pub fn init_embedded(py: Python) -> PyResult<&PyModule> {
 
   // MC
   no.add_class::<MonteCarlo>()?;
+
+  // MPI-related
+  no.add_wrapped(wrap_pyfunction!(sync_py))?;
+  no.add_wrapped(wrap_pyfunction!(gather_py))?;
+
   Ok(no)
 }
 

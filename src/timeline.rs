@@ -148,7 +148,7 @@ impl Iterator for Timeline {
 // unequal to any other value 
 pub const NEVER: f64 = std::f64::NAN;
 // less than any other value
-pub const DISTANT_PAST: f64 = -std::f64::INFINITY;
+pub const DISTANT_PAST: f64 = std::f64::NEG_INFINITY;
 // greater than any other value
 pub const FAR_FUTURE: f64 = std::f64::INFINITY;
 

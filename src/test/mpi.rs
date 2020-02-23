@@ -126,12 +126,17 @@ mod test {
 
     let x = 10 * env::rank() + env::size();
 
+    // should be e.g. [3, 13, 23] on 0
     match env::gather_into(0, &x) {
       Some(a) => {
+        //no::log(&format!("gather_into {} = {:?}", env::rank(), a));
         assert_eq!(env::rank(), 0);
+        assert_eq!(a.len(), env::size() as usize);
         assert!(a.iter().enumerate().all(|(r, &x)|  x == 10 * (r as Rank) + env::size()));
       },
-      None => () 
+      None => {
+        assert!(env::rank() != 0);
+      } 
     };
 
     // scatter
