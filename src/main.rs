@@ -104,11 +104,11 @@ fn run<'py>(py: Python<'py>, independent: bool) -> PyResult<()> {
   for (k, v) in initialisations.iter() {
     neworder::log(&format!("initialisation:{}", k));
     let d: &PyDict = v.downcast_ref()?;
-    let modulename = &d.get_item("module").unwrap().extract::<String>()?;
-    let classname = &d.get_item("class_").unwrap().extract::<String>()?;
-    let args = d.get_item("args").unwrap().downcast_ref::<PyTuple>()?;
+    let modulename = &d.get_item("module").unwrap().extract::<String>().expect("module not found");
+    let classname = &d.get_item("class_").unwrap().extract::<String>().expect("class not found");
+    let args = d.get_item("args").unwrap().downcast_ref::<PyTuple>().expect("args not found (must be tuple e.g. (x,))");
     let kwargs = match d.get_item("kwargs") {
-      Some(d) => Some(d.downcast_ref::<PyDict>()?),
+      Some(d) => Some(d.downcast_ref::<PyDict>().expect("kwargs not found")),
       None => None
     };
 
@@ -118,7 +118,7 @@ fn run<'py>(py: Python<'py>, independent: bool) -> PyResult<()> {
     // Get the class (a &PyObject)
     let class = &module.get(classname)?.to_object(py);
     // Call the ctor, (result is a &PyObject)
-    let object = &class.call(py, args, kwargs)?;
+    let object = &class.call(py, args, kwargs).expect("initialisation error");
 
     // add to locals
     locals.set_item(k, object)?;
@@ -157,11 +157,11 @@ fn run<'py>(py: Python<'py>, independent: bool) -> PyResult<()> {
   };
 
   // transitions: dict of exec
-  let transitions: &PyDict = no.get("transitions")?.downcast_ref()?;
+  let transitions: &PyDict = no.get("transitions").expect("transitions").downcast_ref()?;
   let mut transition_callbacks = CommandDict::new();
   for (k, v) in transitions {
-    let name = k.extract::<&str>()?;
-    let code = v.extract::<&str>()?;
+    let name = k.extract::<&str>().expect("transition key");
+    let code = v.extract::<&str>().expect("transition code");
     transition_callbacks.insert(name, (code, CommandType::Exec));   
   }
 

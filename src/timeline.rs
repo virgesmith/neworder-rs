@@ -91,6 +91,10 @@ impl Timeline {
     &self.index == self.checkpoints.last().unwrap()
   }
 
+  pub fn nsteps(&self) -> u32 {
+    self.checkpoints.last().unwrap().clone()
+  }
+
   // this doesnt work unless explicitly called e.g. timeline.__repr__()
   fn __repr__(&self) -> PyResult<String> {
     Ok(format!("<neworder.Timeline start={} end={}, checkpoints={:?} index={}>", self.start, self.end, self.checkpoints, self.index))
