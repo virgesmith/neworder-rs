@@ -43,6 +43,7 @@ mod test {
     assert_eq!(timeline.dt(), 1.0);
     assert_eq!(timeline.at_checkpoint(), false);
     assert_eq!(timeline.at_end(), false);
+    assert_eq!(timeline.nsteps(), 30);
 
     // test Iterator impl
     let r = timeline.next().unwrap();
@@ -92,6 +93,7 @@ mod test {
     assert_eq!(notimeline.dt(), 0.0);
     assert_eq!(notimeline.at_checkpoint(), false);
     assert_eq!(notimeline.at_end(), false);
+    assert_eq!(notimeline.nsteps(), 1);
 
     let r = notimeline.next().unwrap();
     assert_eq!(r.0, 1);

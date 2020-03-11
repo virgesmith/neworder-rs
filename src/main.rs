@@ -77,7 +77,12 @@ fn run<'py>(py: Python<'py>, independent: bool) -> PyResult<()> {
   let indep = mc.getattr(py, "indep")?.call0(py)?.extract::<bool>(py)?;
   let seed = mc.getattr(py, "seed")?.call0(py)?.extract::<u32>(py)?;
 
-  let pyinfo = py.import("sys")?.get("version")?.to_string().replace("\n", "");
+  let sys = py.import("sys")?;
+  // required otherwise matplotlib fails to initialise
+  let argv = PyList::new(py, &["neworder"]);
+  sys.add("argv", argv)?;
+
+  let pyinfo = sys.get("version")?.to_string().replace("\n", "");
 
   neworder::log(&format!("{} initialised: mc=(indep:{} seed:{}) python={}", 
     neworder::name(), indep, seed, &pyinfo)); 

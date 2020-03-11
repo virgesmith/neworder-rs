@@ -35,9 +35,19 @@ impl MonteCarlo {
     MonteCarlo{ indep: indep, seed: seed, rng: MT19937::new(Some(seed)) }
   }
 
+  // simple hazard constant probability 
+  fn hazard(&mut self, prob: f64, n: usize) -> Vec<f64> {
+    self.rng.uniforms01(n).iter().map(|x| match x < &prob { true => 1.0, false => 0.0 }).collect()
+  }
+
   // [arg] the trait `pyo3::type_object::PyTypeInfo` is not implemented for `std::vec::Vec<f64>
   fn hazard_a(&mut self, probs: &[f64]) -> Vec<f64> {
     self.rng.uniforms01(probs.len()).iter().zip(probs).map(|(x, p)| match x < p { true => 1.0, false => 0.0 }).collect()
+  }
+
+  fn stopping(&mut self, prob: f64, n: usize) -> Vec<f64> {
+    let rp = 1.0 / prob;
+    self.rng.uniforms01(n).iter().map(|x| -(x.ln() * rp)).collect()
   }
 
   fn stopping_a(&mut self, probs: &[f64]) -> Vec<f64> {
@@ -107,7 +117,7 @@ impl MonteCarlo {
 
 //   return nptimes;
 // }
-  pub fn first_arrival(&mut self, lambda_t: &[f64], dt: f64, n: usize, minval: f64)
+  pub fn first_arrival(&mut self, lambda_t: &[f64], dt: f64, n: usize, minval: f64) -> Vec<f64>
   {
     let nl = lambda_t.len();
     let lambda_u = lambda_t.iter().fold(std::f64::NEG_INFINITY, |a, &b| a.max(b));
@@ -130,6 +140,7 @@ impl MonteCarlo {
         if self.rng.uniform01() <= lambda_i / lambda_u { break; }
       } 
     }
+    times
   }
 // np::array no::MonteCarlo::first_arrival(const np::array& lambda_t, double dt, size_t n, double minval)
 // {
@@ -188,25 +199,31 @@ impl MonteCarlo {
   } 
 
   // simple hazard constant probability 
-  fn hazard(&mut self, prob: f64, n: usize) -> Vec<f64> {
-    self.rng.uniforms01(n).iter().map(|x| match x < &prob { true => 1.0, false => 0.0 }).collect()
+  #[name="hazard"]
+  fn hazard_py(&mut self, py: Python, prob: f64, n: usize) -> Py<PyArray1::<f64>> { //Vec<f64> {
+    let res = PyArray1::from_vec(py, self.hazard(prob, n));
+    res.to_owned()
+  
   }
 
   // [arg] the trait `pyo3::type_object::PyTypeInfo` is not implemented for `std::vec::Vec<f64>
   #[name="hazard_a"]
-  fn hazard_a_py(&mut self, probs: &PyArray1::<f64>) -> Vec<f64> {
-    self.hazard_a(probs.as_slice().unwrap())
+  fn hazard_a_py(&mut self, py: Python, probs: &PyArray1::<f64>) -> Py<PyArray1::<f64>> {
+    let res = PyArray1::from_vec(py, self.hazard_a(probs.as_slice().unwrap()));
+    res.to_owned()
   }
 
-  fn stopping(&mut self, prob: f64, n: usize) -> Vec<f64> {
-    let rp = 1.0 / prob;
-    self.rng.uniforms01(n).iter().map(|x| -(x.ln() * rp)).collect()
+  #[name="stopping"]
+  fn stopping_py(&mut self, py: Python, prob: f64, n: usize) -> Py<PyArray1::<f64>> {
+    let res = PyArray1::from_vec(py, self.stopping(prob, n));
+    res.to_owned()
   }
 
   // [arg] the trait `pyo3::type_object::PyTypeInfo` is not implemented for `std::vec::Vec<f64>
   #[name="stopping_a"]
-  fn stopping_a_py(&mut self, probs: &PyArray1::<f64>) -> Vec<f64> {
-    self.stopping_a(probs.as_slice().unwrap())
+  fn stopping_a_py(&mut self, py: Python, probs: &PyArray1::<f64>) -> Py<PyArray1::<f64>> {
+    let res = PyArray1::from_vec(py, self.stopping_a(probs.as_slice().unwrap()));
+    res.to_owned()
   }
 }
 
