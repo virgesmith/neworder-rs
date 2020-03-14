@@ -5,12 +5,33 @@ mod test {
   use crate::neworder as no;
   use crate::python;
   use crate::env;
+  use crate::montecarlo::MonteCarlo;
 
   use pyo3::prelude::*;
   use pyo3::{Python};//, PyResult};
   use pyo3::types::*; 
   
-    #[test]
+  #[test]
+  fn test_mt19937() {
+    let mut mc = MonteCarlo::new(0, 1, true); 
+    assert!(mc.seed() == 19937);
+    let r = mc.ustream(5); 
+
+    let scale = 0.5 / (1u32 << 31) as f64;
+    assert!(r[0] == 1450791966u32 as f64 * scale); // 0.3377888272516429 
+    assert!(r[1] ==  204743920u32 as f64 * scale); // 0.04767065867781639 
+    assert!(r[2] == 3492290356u32 as f64 * scale); // 0.8131122114136815 
+    assert!(r[3] == 1071801876u32 as f64 * scale); // 0.249548320658505 
+    assert!(r[4] == 1454088227u32 as f64 * scale); // 0.3385562978219241
+
+    assert!((r[0] - 0.3377888272516429).abs() < 1e-15);
+    assert!((r[1] - 0.04767065867781639).abs() < 1e-15);
+    assert!((r[2] - 0.8131122114136815 ).abs() < 1e-15);
+    assert!((r[3] - 0.249548320658505).abs() < 1e-15);
+    assert!((r[4] - 0.3385562978219241).abs() < 1e-15);
+  }
+
+  #[test]
   fn test_mc() {
 
     // fails with mpi

@@ -1,16 +1,13 @@
 
 use crate::timeline;
-use pyo3::prelude::*;
-use rand::gen::pseudo::MT19937;
-use rand::gen::{RandomStream, Dimensionless, Resettable};
+use mersenne_twister::MT19937;
+use rand::{Rng, SeedableRng};
 use mpi::topology::Rank;
-
+use pyo3::prelude::*;
 use numpy::PyArray1;
-
 use std::cmp;
 
 const BASE_SEED: u32 = 19937;
-
 
 // compute the RNG seed
 fn compute_seed(rank: Rank, size: Rank, indep: bool) -> u32
@@ -18,7 +15,6 @@ fn compute_seed(rank: Rank, size: Rank, indep: bool) -> u32
   // ensure stream (in)dependence w.r.t. sequence and MPI rank/sizes
   77027473 * 0 + BASE_SEED * (size as u32) + (rank as u32) * (indep as u32)
 }
-
 
 #[pyclass]
 pub struct MonteCarlo {
@@ -32,27 +28,36 @@ pub struct MonteCarlo {
 impl MonteCarlo {
   pub fn new(rank: Rank, size: Rank, indep: bool) -> MonteCarlo {
     let seed = compute_seed(rank, size, indep);
-    MonteCarlo{ indep: indep, seed: seed, rng: MT19937::new(Some(seed)) }
+    MonteCarlo{ indep: indep, seed: seed, rng: MT19937::from_seed(seed) }
+  }
+
+
+  fn uniform01(&mut self) -> f64 {
+    self.rng.next_u32() as f64 / (1u64 << 32) as f64 
+  }
+
+  fn uniforms01(&mut self, n: usize) -> Vec<f64> {
+    (0..n).map(|_| self.uniform01()).collect()
   }
 
   // simple hazard constant probability 
   fn hazard(&mut self, prob: f64, n: usize) -> Vec<f64> {
-    self.rng.uniforms01(n).iter().map(|x| match x < &prob { true => 1.0, false => 0.0 }).collect()
+    self.uniforms01(n).iter().map(|&x| match x < prob { true => 1.0, false => 0.0 }).collect()
   }
 
   // [arg] the trait `pyo3::type_object::PyTypeInfo` is not implemented for `std::vec::Vec<f64>
   fn hazard_a(&mut self, probs: &[f64]) -> Vec<f64> {
-    self.rng.uniforms01(probs.len()).iter().zip(probs).map(|(x, p)| match x < p { true => 1.0, false => 0.0 }).collect()
+    self.uniforms01(probs.len()).iter().zip(probs).map(|(x, p)| match x < p { true => 1.0, false => 0.0 }).collect()
   }
 
   fn stopping(&mut self, prob: f64, n: usize) -> Vec<f64> {
     let rp = 1.0 / prob;
-    self.rng.uniforms01(n).iter().map(|x| -(x.ln() * rp)).collect()
+    self.uniforms01(n).iter().map(|x| -(x.ln() * rp)).collect()
   }
 
   fn stopping_a(&mut self, probs: &[f64]) -> Vec<f64> {
     //return np::unary_op<double, double>(prob, [&](double p) { return -::log(dist(m_prng)) / p; });
-    self.rng.uniforms01(probs.len()).iter().zip(probs).map(|(x, p)| -(x.ln() / p) ).collect()
+    self.uniforms01(probs.len()).iter().zip(probs).map(|(x, p)| -(x.ln() / p) ).collect()
   }
   
 //   // multiple-arrival (0+) process 
@@ -129,7 +134,7 @@ impl MonteCarlo {
     for i in 0..n {
       times[i] = minval;
       loop {
-        times[i] += -self.rng.uniform01().ln() / lambda_u;
+        times[i] += -self.uniform01().ln() / lambda_u;
 
         lambda_i = lambda_t[cmp::min((times[i] / dt) as usize, nl-1)];
         // deal with open case (event not certain to happen)
@@ -137,7 +142,7 @@ impl MonteCarlo {
           times[i] = timeline::NEVER;
           break;
         }
-        if self.rng.uniform01() <= lambda_i / lambda_u { break; }
+        if self.uniform01() <= lambda_i / lambda_u { break; }
       } 
     }
     times
@@ -191,19 +196,18 @@ impl MonteCarlo {
   }
 
   pub fn reset(&mut self) {
-    self.rng.reset();
+    self.rng.reseed(self.seed);
   }
 
   pub fn ustream(&mut self, n: usize) -> Vec::<f64> {
-    self.rng.uniforms01(n)
+    self.uniforms01(n)
   } 
 
   // simple hazard constant probability 
   #[name="hazard"]
-  fn hazard_py(&mut self, py: Python, prob: f64, n: usize) -> Py<PyArray1::<f64>> { //Vec<f64> {
+  fn hazard_py(&mut self, py: Python, prob: f64, n: usize) -> Py<PyArray1::<f64>> { 
     let res = PyArray1::from_vec(py, self.hazard(prob, n));
     res.to_owned()
-  
   }
 
   // [arg] the trait `pyo3::type_object::PyTypeInfo` is not implemented for `std::vec::Vec<f64>
