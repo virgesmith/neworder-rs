@@ -171,9 +171,7 @@ pub fn init_mc<'py>(py: Python, indep: bool, no: &'py PyModule) -> &'py mut Mont
   let mc = PyRefMut::new(py, MonteCarlo::new(env::rank(), env::size(), indep)).unwrap();
   // expose it to python
   no.add("mc", mc).unwrap();
-  //
-  //Ok(no.get("mc")?.to_object(py))
-  /* let mc_rs: &mut MonteCarlo =*/ no.get("mc").unwrap().extract().unwrap()
+  no.get("mc").unwrap().extract().unwrap()
 }
   
 fn add_module(py: Python, module: &PyModule) {

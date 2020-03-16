@@ -31,8 +31,31 @@ mod test {
     assert!((r[4] - 0.3385562978219241).abs() < 1e-15);
   }
 
+  // no::MonteCarlo mc(0, 1, 19937); 
+  // CHECK(mc.seed() == 19937);
+  // CHECK(mc.indep());
+  // py::array a = mc.ustream(5);
+  // no::log(a);
+  // CHECK(fabs(no::at<double>(a,{0}) - 0.33778882725164294) < 1e-8);
+  // CHECK(fabs(no::at<double>(a,{1}) - 0.04767065867781639) < 1e-8);
+  // CHECK(fabs(no::at<double>(a,{2}) - 0.8131122114136815) < 1e-8);
+  // CHECK(fabs(no::at<double>(a,{3}) - 0.24954832065850496) < 1e-8);
+  // CHECK(fabs(no::at<double>(a,{4}) - 0.3385562978219241) < 1e-8);
+
+  // mc.reset();
+  // py::array h = mc.hazard(0.5, 1000000);
+  // CHECK(no::sum<int>(h) == 500151)
+
+
   #[test]
-  fn test_mc() {
+  fn test_hazard() {
+    let mut mc = MonteCarlo::new(0, 1, true); 
+    let h = mc.hazard(0.5, 1000000);
+    assert!(h.iter().sum::<i32>() == 500151); 
+  }
+
+  #[test]
+  fn test_mc_py() {
 
     // fails with mpi
     if env::size() > 1 { return; }
@@ -85,8 +108,7 @@ mod test {
     let h01_rs = mc_rs.ustream(2);
     // // values should still match (0,1) == (0,1)
     assert_eq!(h01_rs[0], h01_py[0]);
-    assert_eq!(h01_rs[1], h01_py[1]);
-    
+    assert_eq!(h01_rs[1], h01_py[1]); 
   }
 
 }

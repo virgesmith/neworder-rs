@@ -28,36 +28,36 @@ pub struct MonteCarlo {
 impl MonteCarlo {
   pub fn new(rank: Rank, size: Rank, indep: bool) -> MonteCarlo {
     let seed = compute_seed(rank, size, indep);
-    MonteCarlo{ indep: indep, seed: seed, rng: MT19937::from_seed(seed) }
+    let rng = MT19937::from_seed(seed);
+    MonteCarlo{ indep: indep, seed: seed, rng: rng }
   }
-
 
   fn uniform01(&mut self) -> f64 {
     self.rng.next_u32() as f64 / (1u64 << 32) as f64 
   }
 
-  fn uniforms01(&mut self, n: usize) -> Vec<f64> {
+  pub fn ustream(&mut self, n: usize) -> Vec<f64> {
     (0..n).map(|_| self.uniform01()).collect()
   }
 
   // simple hazard constant probability 
-  fn hazard(&mut self, prob: f64, n: usize) -> Vec<f64> {
-    self.uniforms01(n).iter().map(|&x| match x < prob { true => 1.0, false => 0.0 }).collect()
+  pub fn hazard(&mut self, prob: f64, n: usize) -> Vec<i32> {
+    self.ustream(n).iter().map(|&x| match x < prob { true => 1, false => 0 }).collect()
   }
 
   // [arg] the trait `pyo3::type_object::PyTypeInfo` is not implemented for `std::vec::Vec<f64>
-  fn hazard_a(&mut self, probs: &[f64]) -> Vec<f64> {
-    self.uniforms01(probs.len()).iter().zip(probs).map(|(x, p)| match x < p { true => 1.0, false => 0.0 }).collect()
+  pub fn hazard_a(&mut self, probs: &[f64]) -> Vec<i32> {
+    self.ustream(probs.len()).iter().zip(probs).map(|(x, p)| match x < p { true => 1, false => 0 }).collect()
   }
 
-  fn stopping(&mut self, prob: f64, n: usize) -> Vec<f64> {
+  pub fn stopping(&mut self, prob: f64, n: usize) -> Vec<f64> {
     let rp = 1.0 / prob;
-    self.uniforms01(n).iter().map(|x| -(x.ln() * rp)).collect()
+    self.ustream(n).iter().map(|x| -(x.ln() * rp)).collect()
   }
 
-  fn stopping_a(&mut self, probs: &[f64]) -> Vec<f64> {
+  pub fn stopping_a(&mut self, probs: &[f64]) -> Vec<f64> {
     //return np::unary_op<double, double>(prob, [&](double p) { return -::log(dist(m_prng)) / p; });
-    self.uniforms01(probs.len()).iter().zip(probs).map(|(x, p)| -(x.ln() / p) ).collect()
+    self.ustream(probs.len()).iter().zip(probs).map(|(x, p)| -(x.ln() / p) ).collect()
   }
   
 //   // multiple-arrival (0+) process 
@@ -199,20 +199,22 @@ impl MonteCarlo {
     self.rng.reseed(self.seed);
   }
 
-  pub fn ustream(&mut self, n: usize) -> Vec::<f64> {
-    self.uniforms01(n)
+  #[name="ustream"]
+  pub fn ustream_py(&mut self, py: Python, n: usize) -> Py<PyArray1::<f64>> {
+    let res = PyArray1::from_vec(py, self.ustream(n));
+    res.to_owned()
   } 
 
   // simple hazard constant probability 
   #[name="hazard"]
-  fn hazard_py(&mut self, py: Python, prob: f64, n: usize) -> Py<PyArray1::<f64>> { 
+  fn hazard_py(&mut self, py: Python, prob: f64, n: usize) -> Py<PyArray1::<i32>> { 
     let res = PyArray1::from_vec(py, self.hazard(prob, n));
     res.to_owned()
   }
 
   // [arg] the trait `pyo3::type_object::PyTypeInfo` is not implemented for `std::vec::Vec<f64>
   #[name="hazard_a"]
-  fn hazard_a_py(&mut self, py: Python, probs: &PyArray1::<f64>) -> Py<PyArray1::<f64>> {
+  fn hazard_a_py(&mut self, py: Python, probs: &PyArray1::<f64>) -> Py<PyArray1::<i32>> {
     let res = PyArray1::from_vec(py, self.hazard_a(probs.as_slice().unwrap()));
     res.to_owned()
   }

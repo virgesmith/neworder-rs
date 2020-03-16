@@ -40,8 +40,6 @@ fn main() -> Result<(), ()> {
     _ => ()
   }
 
-  
-
   // this block limits scope of (mutable) borrows by ap.refer() method
   {
     let mut ap = ArgumentParser::new();
