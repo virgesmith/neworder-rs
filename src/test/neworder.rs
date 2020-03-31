@@ -11,7 +11,7 @@ mod test {
   use pyo3::{Python};//, PyResult};
   use pyo3::types::*; 
 
-  use numpy::{PyArray1};
+  //use numpy::{PyArray1};
 
 
   #[test]

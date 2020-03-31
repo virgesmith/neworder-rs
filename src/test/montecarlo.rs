@@ -55,6 +55,19 @@ mod test {
   }
 
   #[test]
+  fn test_first_arrival() {
+    let mut mc = MonteCarlo::new(0, 1, true); 
+    let a = mc.first_arrival(&[0.1, 0.2, 0.3], 1.0, 6, 0.0);
+    assert_eq!(a.len(), 6);
+    assert_eq!(a[0], 3.6177811673165667);
+    assert_eq!(a[1], 0.6896205251312125);
+    assert_eq!(a[2], 3.610216282947799);
+    assert_eq!(a[3], 7.883336832344425);
+    assert_eq!(a[4], 6.461894711350323);
+    assert_eq!(a[5], 2.8566436418145944);
+  }
+
+  #[test]
   fn test_mc_py() {
 
     // fails with mpi
@@ -110,5 +123,4 @@ mod test {
     assert_eq!(h01_rs[0], h01_py[0]);
     assert_eq!(h01_rs[1], h01_py[1]); 
   }
-
 }

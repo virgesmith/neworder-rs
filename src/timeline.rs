@@ -95,6 +95,15 @@ impl Timeline {
     self.checkpoints.last().unwrap().clone()
   }
 
+  #[staticmethod]
+  pub fn array_isnever(py: Python, a: &PyArray1<f64>) -> Py<PyArray1<bool>> {
+    let r = a.as_slice().unwrap().iter().map(|&x| isnever(x)).collect::<Vec<bool>>();
+    //let res = PyArray1::new(py, a.dims(), false);
+    let res = PyArray1::from_vec(py, r);
+    res.to_owned()
+  }
+
+
   // this doesnt work unless explicitly called e.g. timeline.__repr__()
   fn __repr__(&self) -> PyResult<String> {
     Ok(format!("<neworder.Timeline start={} end={}, checkpoints={:?} index={}>", self.start, self.end, self.checkpoints, self.index))
@@ -160,13 +169,4 @@ pub const FAR_FUTURE: f64 = std::f64::INFINITY;
 pub fn isnever(t: f64) -> bool {
   t.is_nan() 
 }
-
-//#[pyfunction]
-pub fn array_isnever(py: Python, a: &PyArray1<f64>) -> Py<PyArray1<bool>> {
-  let r = a.as_slice().unwrap().iter().map(|&x| isnever(x)).collect::<Vec<bool>>();
-  //let res = PyArray1::new(py, a.dims(), false);
-  let res = PyArray1::from_vec(py, r);
-  res.to_owned()
-}
-
 

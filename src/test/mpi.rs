@@ -12,7 +12,7 @@ mod test {
   use mpi::traits::*;
   //use mpi::collective::CommunicatorCollectives;
 
-  use numpy::{PyArray1};
+  //use numpy::{PyArray1};
 
   // TODO crashes... fix
   // //fn send0_recv1<T: PartialEq + mpi::datatype::Equivalence>(x: T) -> bool {

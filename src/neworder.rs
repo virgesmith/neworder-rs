@@ -5,7 +5,7 @@ use pyo3::{Python, PyResult};
 use pyo3::wrap_pyfunction;
 use pyo3::types::{PyModule, PyDict, PyList, PyTuple, PyString};
 
-use numpy::PyArray1;
+//use numpy::PyArray1;
 
 //use numpy::array::get_array_module;
 use mpi::topology::Rank;

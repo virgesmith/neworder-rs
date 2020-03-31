@@ -104,5 +104,4 @@ mod test {
 
     // TODO test Timeline in sync in python
   }
-
 }
