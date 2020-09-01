@@ -1,13 +1,14 @@
 
 use pyo3::prelude::*;
-use pyo3::{Py,Python};
-//use pyo3::types::PyAny;
-use numpy::PyArray1;
-//use numpy::PyArrayDyn;
-//use numpy::PyArray;
+// use pyo3::{Py,Python};
+// //use pyo3::types::PyAny;
+// use numpy::PyArray1;
+// //use numpy::PyArrayDyn;
+// //use numpy::PyArray;
 
 
 #[pyclass]
+#[derive(Clone)]
 pub struct Timeline {
   // start time (0)
   start: f64,
@@ -23,13 +24,12 @@ pub struct Timeline {
 // e.g. Timeline{ 2020.0, 2050.0, [10,20,30] }
 // gives 1 year timesteps with checkpoints at 2030.0, 2040.0 ending at 2050.0
 
-
 #[pymethods]
 impl Timeline {
 
   #[new]
-  fn __new__(init: &PyRawObject, start: f64, end: f64, checkpoints: Vec<u32>) {
-    init.init(Timeline::new(start, end, checkpoints));
+  fn __init__(start: f64, end: f64, checkpoints: Vec<u32>) -> Self {
+    Timeline::new(start, end, checkpoints)
   }
 
   #[staticmethod]
@@ -42,29 +42,13 @@ impl Timeline {
     }
   }
 
-  // pub fn start(&self) -> f64 {
-  //   self.start
-  // }
-
-  // pub fn end(&self) -> f64 {
-  //   self.end
-  // }
-
-  // pub fn checkpoints(&self) -> &Vec<u32> {
-  //   &self.checkpoints
-  // }
 
   // Temporarily(?) expose an increment method to python
   fn next(&mut self) {
     self.index += 1;
   }
 
-  #[name="next"]
-  fn next_n(&mut self, n: u32 ) {
-    self.index += n;
-  }
-
-  // curent timestep index
+  // current timestep index
   pub fn index(&self) -> u32 {
     self.index
   }
@@ -95,13 +79,13 @@ impl Timeline {
     self.checkpoints.last().unwrap().clone()
   }
 
-  #[staticmethod]
-  pub fn array_isnever(py: Python, a: &PyArray1<f64>) -> Py<PyArray1<bool>> {
-    let r = a.as_slice().unwrap().iter().map(|&x| isnever(x)).collect::<Vec<bool>>();
-    //let res = PyArray1::new(py, a.dims(), false);
-    let res = PyArray1::from_vec(py, r);
-    res.to_owned()
-  }
+  // #[staticmethod]
+  // pub fn array_isnever(py: Python, a: &PyArray1<f64>) -> Py<PyArray1<bool>> {
+  //   let r = a.as_slice().unwrap().iter().map(|&x| isnever(x)).collect::<Vec<bool>>();
+  //   //let res = PyArray1::new(py, a.dims(), false);
+  //   let res = PyArray1::from_vec(py, r);
+  //   res.to_owned()
+  // }
 
 
   // this doesnt work unless explicitly called e.g. timeline.__repr__()

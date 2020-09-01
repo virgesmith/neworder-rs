@@ -3,7 +3,7 @@
 mod timeline;
 mod neworder;
 mod montecarlo;
-mod mpi;
+//mod mpi;
 
 // #[cfg(test)]
 // mod test {

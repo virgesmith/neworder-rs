@@ -1,18 +1,23 @@
 [package]
-name = "neworder"
-version = "0.1.0"
+name = "neworder-rs"
+version = "1.0.0"
 authors = ["virgesmith <andrew@friarswood.net>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[lib]
+name = "neworder"
+crate-type = ["cdylib"]
+
 [dependencies]
-pyo3 = "*"
 numpy = "*"
 ndarray = "*"
-mpi = "*"
 lazy_static = "*"
 num = "*"
-argparse = "*"
-rand = "0.4.6"
+rand = "*"
 mersenne_twister = "*"
+
+[dependencies.pyo3]
+version = "0.11.1"
+features = ["extension-module"]
