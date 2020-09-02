@@ -1,12 +1,7 @@
 
 
-// use num::traits::Zero;
-
-// use std::error::Error;
-
-// use crate::neworder as no;
-
 pub fn version() -> &'static str {
+  // TODO how to get version *at compile time*
   "?"
 }
 

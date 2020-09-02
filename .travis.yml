@@ -17,4 +17,4 @@ addons:
 
 script:
   - cargo build --release
-  - mpirun -n 3 cargo test --tests --release -- --nocapture
+  #- mpirun -n 3 cargo test --tests --release -- --nocapture

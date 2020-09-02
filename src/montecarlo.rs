@@ -1,35 +1,26 @@
 
+
 use crate::timeline;
-use mersenne_twister::MT19937;
+//use crate::env;
 use rand::{Rng, SeedableRng};
-use mpi::topology::Rank;
+use mersenne_twister::MT19937;
 use pyo3::prelude::*;
 use numpy::PyArray1;
 use std::cmp;
 
-const BASE_SEED: u32 = 19937;
-
-// compute the RNG seed
-fn compute_seed(rank: Rank, size: Rank, indep: bool) -> u32
-{
-  // ensure stream (in)dependence w.r.t. sequence and MPI rank/sizes
-  77027473 * 0 + BASE_SEED * (size as u32) + (rank as u32) * (indep as u32)
-}
 
 #[pyclass]
 pub struct MonteCarlo {
-  indep: bool,
   // seed
-  seed: u32,
+  seed: i64,
   rng: MT19937
 }
 
 // not visible to python
 impl MonteCarlo {
-  pub fn new(rank: Rank, size: Rank, indep: bool) -> MonteCarlo {
-    let seed = compute_seed(rank, size, indep);
-    let rng = MT19937::from_seed(seed);
-    MonteCarlo{ indep: indep, seed: seed, rng: rng }
+  pub fn new(seed: i64) -> MonteCarlo {
+    let rng: MT19937 = SeedableRng::from_seed(seed as u32);
+    MonteCarlo{ seed: seed, rng: rng }
   }
 
   fn uniform01(&mut self) -> f64 {
@@ -184,20 +175,35 @@ impl MonteCarlo {
 
 }
 
+
+
+
 #[pymethods]
 impl MonteCarlo {
 
-  pub fn indep(&self) -> bool {
-    self.indep
-  }
-
-  pub fn seed(&self) -> u32 {
+  pub fn seed(&self) -> i64 {
     self.seed
   }
 
   pub fn reset(&mut self) {
-    self.rng.reseed(self.seed);
+    self.rng.reseed(self.seed as u32);
   }
+
+  #[staticmethod]
+  pub fn deterministic_identical_seed(_r: i32) -> PyResult<i64> {
+    Ok(19937)
+  }
+  
+  #[staticmethod]
+  pub fn deterministic_independent_seed(r: i32) -> PyResult<i64> {
+    Ok(19937 + r as i64)
+  }
+
+  // #[staticmethod]
+  // pub fn random_seed(_r: i32) -> PyResult<i64> {
+  //   Ok(?)
+  // }
+
 
   #[name="ustream"]
   pub fn ustream_py(&mut self, py: Python, n: usize) -> Py<PyArray1::<f64>> {
@@ -213,11 +219,11 @@ impl MonteCarlo {
   }
 
   // [arg] the trait `pyo3::type_object::PyTypeInfo` is not implemented for `std::vec::Vec<f64>
-  #[name="hazard_a"]
-  fn hazard_a_py(&mut self, py: Python, probs: &PyArray1::<f64>) -> Py<PyArray1::<i32>> {
-    let res = PyArray1::from_vec(py, self.hazard_a(probs.as_slice().unwrap()));
-    res.to_owned()
-  }
+  // #[name="hazard_a"]
+  // fn hazard_a_py(&mut self, py: Python, probs: &PyArray1::<f64>) -> Py<PyArray1::<i32>> {
+  //   let res = PyArray1::from_vec(py, self.hazard_a(probs.as_slice().unwrap()));
+  //   res.to_owned()
+  // }
 
   #[name="stopping"]
   fn stopping_py(&mut self, py: Python, prob: f64, n: usize) -> Py<PyArray1::<f64>> {
@@ -226,10 +232,20 @@ impl MonteCarlo {
   }
 
   // [arg] the trait `pyo3::type_object::PyTypeInfo` is not implemented for `std::vec::Vec<f64>
-  #[name="stopping_a"]
-  fn stopping_a_py(&mut self, py: Python, probs: &PyArray1::<f64>) -> Py<PyArray1::<f64>> {
-    let res = PyArray1::from_vec(py, self.stopping_a(probs.as_slice().unwrap()));
-    res.to_owned()
+  // #[name="stopping_a"]
+  // fn stopping_a_py(&mut self, py: Python, probs: &PyArray1::<f64>) -> Py<PyArray1::<f64>> {
+  //   let res = PyArray1::from_vec(py, self.stopping_a(probs.as_slice().unwrap()));
+  //   res.to_owned()
+  // }
+
+  // this doesnt work unless explicitly called e.g. timeline.__repr__()
+  fn __repr__(&self) -> PyResult<String> {
+    Ok(format!("<neworder.MonteCarlo seed={}>", self.seed))
   }
+
+  fn __str__(&self) -> PyResult<String> {
+    self.__repr__()
+  }
+
 }
 

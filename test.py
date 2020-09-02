@@ -18,5 +18,22 @@ no.log((t.index(), t.at_checkpoint(), t.at_end()))
 # for _ in t:
 #   no.log()
 
-m = no.Model(t)
-no.log(m)
+m = no.Model(t, no.MonteCarlo.deterministic_identical_seed)
+
+m.modify(no.rank())
+
+try:
+  m.step()
+except NotImplementedError as e:
+  no.log(e)
+else:
+  assert False, "expected error, didnt get one"
+
+assert m.check()
+
+try:
+  m.checkpoint()
+except NotImplementedError as e:
+  no.log(e)
+else:
+  assert False, "expected error, didnt get one"
