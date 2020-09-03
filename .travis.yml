@@ -2,18 +2,19 @@ dist: bionic
 
 language: rust
 rust:
+  - stable
   - nightly
 
 os:
   - linux
 #  - osx
 
-addons:
-  apt:
-    sources:
-      - ubuntu-toolchain-r-test
-    packages:
-      - autoconf autogen libtool texinfo mpich libmpich-dev
+# addons:
+#   apt:
+#     sources:
+#       - ubuntu-toolchain-r-test
+#     packages:
+#       - autoconf autogen libtool texinfo mpich libmpich-dev
 
 script:
   - cargo build --release
