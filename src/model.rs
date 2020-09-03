@@ -1,5 +1,6 @@
 
 use pyo3::prelude::*;
+use pyo3::PyRef;
 //use pyo3::conversion::FromPyObject;
 use pyo3::exceptions::NotImplementedError;
 
@@ -18,9 +19,10 @@ use crate::montecarlo::MonteCarlo;
 // .def("check", &no::Model::check)
 // .def("checkpoint", &no::Model::checkpoint);
 
-#[pyclass]
+#[pyclass(subclass)]
 pub struct Model {
-  timeline: Timeline,
+  timeline_: Timeline,
+  //timeline: &PyCell<Timeline>,
   mc: MonteCarlo
 }
 
@@ -33,18 +35,29 @@ impl Model {
     //let args = PyTuple:new(py, &vec![env::rank(); 1]);
     //let args = (.into_tuple(py);
     let seed: i64 = seeder.call1(py, (env::rank(),)).unwrap().extract(py).unwrap();
-    Model{ timeline: timeline, mc: MonteCarlo::new(seed) }
+    Model{ timeline_: timeline, mc: MonteCarlo::new(seed) }
   }
 
-  // fn timeline(&self) -> &Timeline {
-  //   &self.timeline
+  // fn timeline(&self, py: Python) -> &PyCell<Timeline> {
+  //   let cell: &PyCell<Timeline> = PyCell::new(py, self.timeline).unwrap();
+  //   cell//Ok(Py<Timeline>(self.timeline).as_ref())
+  // }
+  // fn timeline(self, py: Python) -> PyResult<PyObject> {
+  //   Ok(PyRef::new(py, self.timeline_))
   // }
 
+  // fn timeline(&self, py: Python) -> PyResult<Py<&Timeline>> {
+  //   Py::new(py, &self.timeline_)
+  // }
+
+  // fn timeline(&self) -> PyResult<PyRef<Timeline>> {
+  //     Ok(&self.timeline_)
+  // }  
+
+  // the trait `pyo3::callback::IntoPyCallbackOutput<_>` is not implemented for `std::result::Result<&montecarlo::MonteCarlo, pyo3::PyErr>`  
   // fn mc(&self) -> PyResult<&MonteCarlo> {
   //   Ok(&self.mc)
   // }
-
-  // the trait `pyo3::callback::IntoPyCallbackOutput<_>` is not implemented for `std::result::Result<&montecarlo::MonteCarlo, pyo3::PyErr>`  
 
   fn modify(&self, _r: i32) -> PyResult<()> {
     Ok(())

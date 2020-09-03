@@ -1,6 +1,6 @@
 
 use pyo3::prelude::*;
-// use pyo3::{Py,Python};
+use pyo3::PyRef;
 // //use pyo3::types::PyAny;
 // use numpy::PyArray1;
 // //use numpy::PyArrayDyn;
@@ -96,6 +96,11 @@ impl Timeline {
   fn __str__(&self) -> PyResult<String> {
     self.__repr__()
   }
+
+  // fn as_pyref(slf: PyRef<Self>, py: Python) -> PyResult<PyObject> {
+  //   Ok(slf.to_object(py))
+  // }
+
 }
 
 // methods not visible to python

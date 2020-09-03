@@ -2,9 +2,10 @@
 use pyo3::prelude::*;
 use crate::env;
 use crate::montecarlo::MonteCarlo;
+use crate::timeline;
 use crate::timeline::Timeline;
 use crate::model::Model;
-//use pyo3::wrap_pyfunction;
+use pyo3::wrap_pymodule;
 
 pub fn log(msg: &str) {
   log_impl("no", env::rank(), env::size(), msg);
@@ -13,8 +14,6 @@ pub fn log(msg: &str) {
 fn log_impl(ctx: &'static str, rank: i32, size: i32, msg: &str) {
   println!("[{} {}/{}] {}", ctx, rank, size, msg);
 }
-
-
 
 #[pymodule]
 fn neworder(_py: Python, m: &PyModule) -> PyResult<()> {
@@ -36,15 +35,51 @@ fn neworder(_py: Python, m: &PyModule) -> PyResult<()> {
     Ok(env::checked(b))
   }
 
-  #[pyfn(m, "rank")]
-  fn rank(_py: Python) -> PyResult<i32> {
-    Ok(env::rank())
-  }
+  // mpi submodule
+  #[pymodule]
+  fn mpi(_py: Python, m: &PyModule) -> PyResult<()> {
+    #[pyfn(m, "rank")]
+    fn rank() -> PyResult<i32> {
+      Ok(env::rank())
+    }
 
-  #[pyfn(m, "size")]
-  fn size(_py: Python) -> PyResult<i32> {
-    Ok(env::rank())
+    #[pyfn(m, "size")]
+    fn size() -> PyResult<i32> {
+      Ok(env::rank())
+    }
+
+   Ok(())
   }
+  m.add_wrapped(wrap_pymodule!(mpi))?;
+
+  // time submodule
+  #[pymodule]
+  fn time(_py: Python, m: &PyModule) -> PyResult<()> {
+
+    #[pyfn(m, "distant_past")]
+    fn distant_past() -> PyResult<f64> {
+      Ok(timeline::DISTANT_PAST)
+    }
+
+    #[pyfn(m, "far_future")]
+    fn far_future() -> PyResult<f64> {
+      Ok(timeline::FAR_FUTURE)
+    }
+
+    #[pyfn(m, "never")]
+    fn never() -> PyResult<f64> {
+      Ok(timeline::NEVER)
+    }
+
+    #[pyfn(m, "isnever")]
+    fn isnever(t: f64) -> PyResult<bool> {
+      Ok(timeline::isnever(t))
+    }
+
+   Ok(())
+  }
+  m.add_wrapped(wrap_pymodule!(time))?;
+
 
   #[pyfn(m, "log")]
   pub fn log_py(py: Python, x: PyObject) -> PyResult<()> {
@@ -56,6 +91,7 @@ fn neworder(_py: Python, m: &PyModule) -> PyResult<()> {
   m.add_class::<Model>()?;
   m.add_class::<Timeline>()?;
   m.add_class::<MonteCarlo>()?;
+
 
   Ok(())
 }
