@@ -1,8 +1,8 @@
 
 use pyo3::prelude::*;
-use pyo3::PyRef;
+//use pyo3::PyRef;
 //use pyo3::conversion::FromPyObject;
-use pyo3::exceptions::NotImplementedError;
+use pyo3::exceptions::PyNotImplementedError;
 
 //mod timeline;
 use crate::env;
@@ -64,7 +64,7 @@ impl Model {
   }
 
   fn step(&self) -> PyResult<()> {
-    NotImplementedError::into("step() must be implemented in the model subclass")
+    Err(PyNotImplementedError::new_err("step() must be implemented in the model subclass"))
   }
 
   fn check(&self) -> PyResult<bool> {
@@ -73,7 +73,7 @@ impl Model {
   }
 
   fn checkpoint(&self) -> PyResult<()> {
-    NotImplementedError::into("checkpoint() must be implemented in the model subclass")
+    Err(PyNotImplementedError::new_err("checkpoint() must be implemented in the model subclass"))
   }
 
 }

@@ -84,7 +84,7 @@ fn neworder(_py: Python, m: &PyModule) -> PyResult<()> {
   #[pyfn(m, "log")]
   pub fn log_py(py: Python, x: PyObject) -> PyResult<()> {
     let a = x.as_ref(py);
-    log_impl("py", env::rank(), env::size(), &a.str()?.to_string()?);
+    log_impl("py", env::rank(), env::size(), &a.to_string());
     Ok(())
   }
   
