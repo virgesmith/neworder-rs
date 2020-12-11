@@ -1,4 +1,6 @@
 
+
+//use std::borrow::Borrow;
 use pyo3::prelude::*;
 //use pyo3::PyRef;
 //use pyo3::conversion::FromPyObject;
@@ -21,9 +23,11 @@ use crate::montecarlo::MonteCarlo;
 
 #[pyclass(subclass)]
 pub struct Model {
-  timeline_: Timeline,
-  //timeline: &PyCell<Timeline>,
+  #[pyo3(get)]
+  timeline: Timeline,
+  //#[pyo3(get)]
   mc: MonteCarlo
+  //test: u32
 }
 
 
@@ -32,11 +36,15 @@ impl Model {
 
   #[new]
   fn __init__(py: Python, timeline: Timeline, seeder: PyObject) -> Self {
-    //let args = PyTuple:new(py, &vec![env::rank(); 1]);
-    //let args = (.into_tuple(py);
     let seed: i64 = seeder.call1(py, (env::rank(),)).unwrap().extract(py).unwrap();
-    Model{ timeline_: timeline, mc: MonteCarlo::new(seed) }
+    Model{ timeline: timeline, mc: MonteCarlo::new(seed) }
   }
+
+
+  // #[getter]
+  // fn test(&self, py: Python) -> PyResult<&u32> {
+  //   PyCell::new(py, self.test).borrow()
+  // }
 
   // fn timeline(&self, py: Python) -> &PyCell<Timeline> {
   //   let cell: &PyCell<Timeline> = PyCell::new(py, self.timeline).unwrap();
@@ -52,9 +60,9 @@ impl Model {
 
   // fn timeline(&self) -> PyResult<PyRef<Timeline>> {
   //     Ok(&self.timeline_)
-  // }  
+  // }
 
-  // the trait `pyo3::callback::IntoPyCallbackOutput<_>` is not implemented for `std::result::Result<&montecarlo::MonteCarlo, pyo3::PyErr>`  
+  // the trait `pyo3::callback::IntoPyCallbackOutput<_>` is not implemented for `std::result::Result<&montecarlo::MonteCarlo, pyo3::PyErr>`
   // fn mc(&self) -> PyResult<&MonteCarlo> {
   //   Ok(&self.mc)
   // }

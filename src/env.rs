@@ -1,25 +1,40 @@
+use std::sync::Mutex;
 
+lazy_static! {
+
+  // runtime flags
+  static ref VERBOSE: Mutex<bool> = Mutex::new(false);
+  static ref CHECKED: Mutex<bool> = Mutex::new(true);
+  static ref HALT: Mutex<bool> = Mutex::new(false);
+
+  // mpi env
+  static ref RANK: Mutex<i32> = Mutex::new(0);
+  static ref SIZE: Mutex<i32> = Mutex::new(1);
+
+}
 
 pub fn version() -> &'static str {
-  // TODO how to get version *at compile time*
-  "?"
+  // TODO how to get version from VERSION, not Cargo.toml
+  env!("CARGO_PKG_VERSION")
 }
 
 pub fn verbose(v: bool) {
-  // TODO set global
+  *VERBOSE.lock().unwrap() = v;
 }
 
-pub fn checked(v: bool) {
-  // TODO set global
+pub fn checked(c: bool) {
+  *CHECKED.lock().unwrap() = c;
+}
+
+// halt() exposed to python calls this with h=true
+pub fn halt(h: bool) {
+  *HALT.lock().unwrap() = h;
 }
 
 pub fn rank() -> i32 {
-  0 //MPI_ENV.world.rank()
+  *RANK.lock().unwrap()
 }
 
 pub fn size() -> i32 {
-  1 //MPI_ENV.world.size()
+  *SIZE.lock().unwrap()
 }
-
-
-
