@@ -46,7 +46,7 @@ fn neworder(py: Python, m: &PyModule) -> PyResult<()> {
 
   #[pyfn(m, "halt")]
   fn halt(_py: Python) -> PyResult<()> {
-    env::halt(true);
+    env::set_halt(true);
     Ok(())
   }
 

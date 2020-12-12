@@ -13,7 +13,6 @@ crate-type = ["cdylib"]
 [dependencies]
 numpy = "0.12.1"
 ndarray = "*"
-lazy_static = "*"
 num = "*"
 rand = "0.4.6"
 mersenne_twister = "1.1.1"
