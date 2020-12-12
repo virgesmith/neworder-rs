@@ -23,7 +23,7 @@ pub struct MonteCarlo {
 impl MonteCarlo {
   pub fn new(seed: u32) -> MonteCarlo {
     let rng: MT19937 = SeedableRng::from_seed(seed);
-    MonteCarlo{ seed: seed, rng: rng }
+    MonteCarlo{ seed, rng }
   }
 
   fn uniform01(&mut self) -> f64 {

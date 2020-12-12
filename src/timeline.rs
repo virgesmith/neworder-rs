@@ -13,7 +13,7 @@ pub struct Timeline {
   // start time (0)
   start: f64,
   // finish time (corresponding to final checkpoint)
-  end: f64,  
+  end: f64,
   // steps at which to perform extra steps (including end)
   checkpoints: Vec<u32>,
   // current timestep
@@ -55,20 +55,17 @@ impl Timeline {
 
   // current timestep time
   pub fn time(&self) -> f64 {
-    self.start + (self.end - self.start) * (self.index as f64) / (self.checkpoints.last().unwrap().clone() as f64)
+    self.start + (self.end - self.start) * (self.index as f64) / (*self.checkpoints.last().unwrap() as f64)
   }
 
   // timestep length
   pub fn dt(&self) -> f64 {
-    (self.end - self.start) / (self.checkpoints.last().unwrap().clone() as f64)
+    (self.end - self.start) / (*self.checkpoints.last().unwrap() as f64)
   }
 
   // is current index a checkpoint?
   pub fn at_checkpoint(&self) -> bool {
-    match self.checkpoints.iter().find(|&&x| x == self.index) {
-      Some(_) => true,
-      None => false
-    }
+    self.checkpoints.iter().any(|&x| x == self.index) //find(|&&x| x == self.index).is_some()
   }
 
   pub fn at_end(&self) -> bool {
@@ -76,7 +73,7 @@ impl Timeline {
   }
 
   pub fn nsteps(&self) -> u32 {
-    self.checkpoints.last().unwrap().clone()
+    *self.checkpoints.last().unwrap()
   }
 
   // #[staticmethod]
@@ -108,15 +105,15 @@ impl Timeline {
 
   pub fn new(start: f64, end: f64, checkpoints: Vec<u32>) -> Self {
     assert!(start < end, "start time must be before end time");
-    assert!(checkpoints.len() > 0);
+    assert!(!checkpoints.is_empty());
     for i in 1..checkpoints.len() {
       assert!(checkpoints[i-1] < checkpoints[i], "checkpoints should be monotonically increasing");
     }
 
     Timeline {
-      checkpoints: checkpoints,
-      start: start,
-      end: end,
+      checkpoints,
+      start,
+      end,
       index: 0
     }
   }
@@ -125,7 +122,7 @@ impl Timeline {
     self.index = 0;
   }
 
-  
+
   // TODO how to iterate over an nD array
   // pub fn array_isnever_nd(py: Python, a: &nparray<f64>) -> Py<nparray<bool>> {
   //   let r = a.as_slice().unwrap().iter().map(|&x| Timeline::isnever(x)).collect::<Vec<bool>>();
@@ -147,7 +144,7 @@ impl Iterator for Timeline {
 }
 
 
-// unequal to any other value 
+// unequal to any other value
 pub const NEVER: f64 = std::f64::NAN;
 // less than any other value
 pub const DISTANT_PAST: f64 = std::f64::NEG_INFINITY;
@@ -156,6 +153,6 @@ pub const FAR_FUTURE: f64 = std::f64::INFINITY;
 
 // custom comparison (as nan comparison always false)
 pub fn isnever(t: f64) -> bool {
-  t.is_nan() 
+  t.is_nan()
 }
 

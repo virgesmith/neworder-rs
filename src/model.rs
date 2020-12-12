@@ -37,7 +37,7 @@ impl Model {
   #[new]
   fn __init__(py: Python, timeline: Timeline, seeder: PyObject) -> Self {
     let seed: u32 = seeder.call1(py, (env::rank(),)).unwrap().extract(py).unwrap();
-    Model{ timeline: timeline, mc: MonteCarlo::new(seed) }
+    Model{ timeline, mc: MonteCarlo::new(seed) }
   }
 
 

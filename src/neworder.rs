@@ -1,10 +1,12 @@
 
 use pyo3::prelude::*;
+use numpy::PyArray1;
 use crate::env;
 use crate::montecarlo::MonteCarlo;
 use crate::timeline;
 use crate::timeline::Timeline;
 use crate::model::Model;
+
 
 pub fn log(msg: &str) {
   log_impl("no", env::rank(), env::size(), msg);
@@ -26,23 +28,26 @@ fn neworder(py: Python, m: &PyModule) -> PyResult<()> {
   #[pyfn(m, "verbose")]
   fn verbose_default(_py: Python, b: Option<bool>) -> PyResult<()> {
     match b {
-      Some(b) => Ok(env::verbose(b)),
-      None => Ok(env::verbose(true))
-    }
+      Some(b) => env::verbose(b),
+      None => env::verbose(true)
+    };
+    Ok(())
   }
 
   // default arg=True
   #[pyfn(m, "checked")]
   fn checked(_py: Python, b: Option<bool>) -> PyResult<()> {
     match b {
-      Some(b) => Ok(env::checked(b)),
-      None => Ok(env::checked(true))
-    }
+      Some(b) => env::checked(b),
+      None => env::checked(true)
+    };
+    Ok(())
   }
 
   #[pyfn(m, "halt")]
   fn halt(_py: Python) -> PyResult<()> {
-    Ok(env::halt(true))
+    env::halt(true);
+    Ok(())
   }
 
   // TODO try to import mpi4py and check mpi env
@@ -95,6 +100,11 @@ fn neworder(py: Python, m: &PyModule) -> PyResult<()> {
   // TODO: df submodule
   m.add_submodule(df)?;
 
+  #[pyfn(df, "unique_index")]
+  pub fn unique_index(py: Python, n: usize) -> Py<PyArray1::<i64>> {
+    let res = PyArray1::from_vec(py, env::unique_index(n));
+    res.to_owned()
+  }
 
   #[pyfn(m, "log")]
   pub fn log_py(py: Python, x: PyObject) -> PyResult<()> {
@@ -119,6 +129,8 @@ fn neworder(py: Python, m: &PyModule) -> PyResult<()> {
       //   File "<stdin>", line 1, in <module>
       // TypeError: 'tuple' object is not callable
       //PyErr::warn(py, &pyo3::types::PyTuple::empty(py), "mpi4py module not found, assuming serial mode", 0)?;
+      env::set_rank(0);
+      env::set_size(1);
       log_impl("no", 0, 1, "mpi4py module not found, assuming serial mode");
     }
   }
