@@ -1,6 +1,6 @@
 [package]
 name = "neworder-rs"
-version = "1.0.0"
+version = "0.0.0"
 authors = ["virgesmith <andrew@friarswood.net>"]
 edition = "2018"
 
@@ -11,7 +11,7 @@ name = "neworder"
 crate-type = ["cdylib"]
 
 [dependencies]
-numpy = "*"
+numpy = "0.12.1"
 ndarray = "*"
 lazy_static = "*"
 num = "*"
@@ -19,5 +19,5 @@ rand = "0.4.6"
 mersenne_twister = "1.1.1"
 
 [dependencies.pyo3]
-version = "0.12.3"
+version = "0.12.4"
 features = ["extension-module"]

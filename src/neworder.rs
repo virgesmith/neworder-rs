@@ -5,7 +5,6 @@ use crate::montecarlo::MonteCarlo;
 use crate::timeline;
 use crate::timeline::Timeline;
 use crate::model::Model;
-//use pyo3::wrap_pymodule;
 
 pub fn log(msg: &str) {
   log_impl("no", env::rank(), env::size(), msg);
@@ -107,6 +106,22 @@ fn neworder(py: Python, m: &PyModule) -> PyResult<()> {
   m.add_class::<Model>()?;
   m.add_class::<Timeline>()?;
   m.add_class::<MonteCarlo>()?;
+
+  match py.run("import mpi4py.MPI", None, None) {
+    Ok(()) => {
+      env::set_rank(py.eval("MPI.COMM_WORLD.Get_rank()", None, None)?.extract::<i32>()?);
+      env::set_size(py.eval("MPI.COMM_WORLD.Get_size()", None, None)?.extract::<i32>()?);
+    },
+    Err(_) => {
+      // TODO work out whats going wrong here
+      // >>> import neworder as no
+      // Traceback (most recent call last):
+      //   File "<stdin>", line 1, in <module>
+      // TypeError: 'tuple' object is not callable
+      //PyErr::warn(py, &pyo3::types::PyTuple::empty(py), "mpi4py module not found, assuming serial mode", 0)?;
+      log_impl("no", 0, 1, "mpi4py module not found, assuming serial mode");
+    }
+  }
 
   Ok(())
 }

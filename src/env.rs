@@ -38,3 +38,12 @@ pub fn rank() -> i32 {
 pub fn size() -> i32 {
   *SIZE.lock().unwrap()
 }
+
+// these should only be called on module init
+pub fn set_rank(r: i32) {
+  *RANK.lock().unwrap() = r;
+}
+
+pub fn set_size(s: i32) {
+  *SIZE.lock().unwrap() = s;
+}

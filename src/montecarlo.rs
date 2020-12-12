@@ -1,37 +1,40 @@
 
 
 use crate::timeline;
-//use crate::env;
 use rand::{Rng, SeedableRng};
+use rand::os::OsRng; //
 use mersenne_twister::MT19937;
 use pyo3::prelude::*;
 use numpy::PyArray1;
 use std::cmp;
+//use rand::RngCore;
+//use rand::rngs::{OsRng};
 
 
 #[pyclass]
 pub struct MonteCarlo {
   // seed
-  seed: i64,
+  seed: u32,
   rng: MT19937
 }
 
+
 // not visible to python
 impl MonteCarlo {
-  pub fn new(seed: i64) -> MonteCarlo {
-    let rng: MT19937 = SeedableRng::from_seed(seed as u32);
+  pub fn new(seed: u32) -> MonteCarlo {
+    let rng: MT19937 = SeedableRng::from_seed(seed);
     MonteCarlo{ seed: seed, rng: rng }
   }
 
   fn uniform01(&mut self) -> f64 {
-    self.rng.next_u32() as f64 / (1u64 << 32) as f64 
+    self.rng.next_u32() as f64 / (1u64 << 32) as f64
   }
 
   pub fn ustream(&mut self, n: usize) -> Vec<f64> {
     (0..n).map(|_| self.uniform01()).collect()
   }
 
-  // simple hazard constant probability 
+  // simple hazard constant probability
   pub fn hazard(&mut self, prob: f64, n: usize) -> Vec<i32> {
     self.ustream(n).iter().map(|&x| match x < prob { true => 1, false => 0 }).collect()
   }
@@ -50,8 +53,8 @@ impl MonteCarlo {
     //return np::unary_op<double, double>(prob, [&](double p) { return -::log(dist(m_prng)) / p; });
     self.ustream(probs.len()).iter().zip(probs).map(|(x, p)| -(x.ln() / p) ).collect()
   }
-  
-//   // multiple-arrival (0+) process 
+
+//   // multiple-arrival (0+) process
 // np::array no::MonteCarlo::arrivals(const np::array& lambda_t, double dt, double gap, size_t n)
 // {
 //   std::uniform_real_distribution<> dist(0.0, 1.0);
@@ -78,9 +81,9 @@ impl MonteCarlo {
 //   {
 //     // rejection sampling
 //     double pt = 0.0;
-//     do 
+//     do
 //     {
-//       do 
+//       do
 //       {
 //         pt += -::log(dist(m_prng)) / lambda_u;
 //         // final entry in lambda_t is flat extrapolated...
@@ -113,6 +116,7 @@ impl MonteCarlo {
 
 //   return nptimes;
 // }
+
   pub fn first_arrival(&mut self, lambda_t: &[f64], dt: f64, n: usize, minval: f64) -> Vec<f64>
   {
     let nl = lambda_t.len();
@@ -134,7 +138,7 @@ impl MonteCarlo {
           break;
         }
         if self.uniform01() <= lambda_i / lambda_u { break; }
-      } 
+      }
     }
     times
   }
@@ -157,7 +161,7 @@ impl MonteCarlo {
 //   {
 //     // rejection sampling
 //     pt[i] = minval;
-//     do 
+//     do
 //     {
 //       pt[i] += -::log(dist(m_prng)) / lambda_u;
 //       // final entry in lambda_t is flat extrapolated...
@@ -176,12 +180,10 @@ impl MonteCarlo {
 }
 
 
-
-
 #[pymethods]
 impl MonteCarlo {
 
-  pub fn seed(&self) -> i64 {
+  pub fn seed(&self) -> u32 {
     self.seed
   }
 
@@ -190,30 +192,30 @@ impl MonteCarlo {
   }
 
   #[staticmethod]
-  pub fn deterministic_identical_seed(_r: i32) -> PyResult<i64> {
+  pub fn deterministic_identical_stream(_r: i32) -> PyResult<i64> {
     Ok(19937)
   }
-  
+
   #[staticmethod]
-  pub fn deterministic_independent_seed(r: i32) -> PyResult<i64> {
+  pub fn deterministic_independent_stream(r: i32) -> PyResult<i64> {
     Ok(19937 + r as i64)
   }
 
-  // #[staticmethod]
-  // pub fn random_seed(_r: i32) -> PyResult<i64> {
-  //   Ok(?)
-  // }
-
+  #[staticmethod]
+  pub fn nondeterministic_stream(_r: i32) -> PyResult<u32> {
+    // this is changed in later versions of rand (MT pins us to 0.4.6 sadly)
+    Ok(OsRng::new()?.next_u32())
+  }
 
   #[name="ustream"]
   pub fn ustream_py(&mut self, py: Python, n: usize) -> Py<PyArray1::<f64>> {
     let res = PyArray1::from_vec(py, self.ustream(n));
     res.to_owned()
-  } 
+  }
 
-  // simple hazard constant probability 
+  // simple hazard constant probability
   #[name="hazard"]
-  fn hazard_py(&mut self, py: Python, prob: f64, n: usize) -> Py<PyArray1::<i32>> { 
+  fn hazard_py(&mut self, py: Python, prob: f64, n: usize) -> Py<PyArray1::<i32>> {
     let res = PyArray1::from_vec(py, self.hazard(prob, n));
     res.to_owned()
   }

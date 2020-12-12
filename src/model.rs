@@ -36,7 +36,7 @@ impl Model {
 
   #[new]
   fn __init__(py: Python, timeline: Timeline, seeder: PyObject) -> Self {
-    let seed: i64 = seeder.call1(py, (env::rank(),)).unwrap().extract(py).unwrap();
+    let seed: u32 = seeder.call1(py, (env::rank(),)).unwrap().extract(py).unwrap();
     Model{ timeline: timeline, mc: MonteCarlo::new(seed) }
   }
 
@@ -50,6 +50,7 @@ impl Model {
   //   let cell: &PyCell<Timeline> = PyCell::new(py, self.timeline).unwrap();
   //   cell//Ok(Py<Timeline>(self.timeline).as_ref())
   // }
+
   // fn timeline(self, py: Python) -> PyResult<PyObject> {
   //   Ok(PyRef::new(py, self.timeline_))
   // }
