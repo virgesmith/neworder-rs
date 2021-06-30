@@ -4,7 +4,8 @@ use numpy::PyArray1;
 use crate::env;
 use crate::montecarlo::MonteCarlo;
 use crate::timeline;
-use crate::timeline::Timeline;
+use crate::timeline::NoTimeline;
+use crate::model;
 use crate::model::Model;
 
 
@@ -17,12 +18,7 @@ fn log_impl(ctx: &'static str, rank: i32, size: i32, msg: &str) {
 }
 
 #[pymodule]
-fn neworder(py: Python, m: &PyModule) -> PyResult<()> {
-
-  #[pyfn(m, "version")]
-  fn version(_py: Python) -> PyResult<&str> {
-    Ok(env::version())
-  }
+fn _neworder_core(py: Python, m: &PyModule) -> PyResult<()> {
 
   // default arg=True
   #[pyfn(m, "verbose")]
@@ -50,9 +46,26 @@ fn neworder(py: Python, m: &PyModule) -> PyResult<()> {
     Ok(())
   }
 
-  // TODO try to import mpi4py and check mpi env
+  #[pyfn(m, "run")]
+  fn run(/*_py: Python, */m: &PyCell<Model>) -> PyResult<bool> {
+
+    // TODO need to implement polymorphic behaviour i.e. virtual functions
+    let _model_mut = m.try_borrow_mut()?;
+
+    log("got mutable model ref");
+
+    Ok(true)
+  }
+
+  #[pyfn(m, "log")]
+  pub fn log_py(py: Python, x: PyObject) -> PyResult<()> {
+    let a = x.as_ref(py);
+    log_impl("py", env::rank(), env::size(), &a.to_string());
+    Ok(())
+  }
 
   // mpi submodule
+
   let mpi = PyModule::new(py, "mpi")?;
 
   #[pyfn(mpi, "rank")]
@@ -64,9 +77,11 @@ fn neworder(py: Python, m: &PyModule) -> PyResult<()> {
   fn size() -> PyResult<i32> {
     Ok(env::size())
   }
+
   m.add_submodule(mpi)?;
 
   // time submodule
+
   let time = PyModule::new(py, "time")?;
 
   #[pyfn(time, "distant_past")]
@@ -91,14 +106,19 @@ fn neworder(py: Python, m: &PyModule) -> PyResult<()> {
 
   m.add_submodule(time)?;
 
-  // time submodule
+  m.add_class::<NoTimeline>()?;
+
+
+  // stats submodule
+
   let stats = PyModule::new(py, "stats")?;
-  // TODO: stats submodule
+
+  // TODO...
+
   m.add_submodule(stats)?;
 
   let df = PyModule::new(py, "df")?;
   // TODO: df submodule
-  m.add_submodule(df)?;
 
   #[pyfn(df, "unique_index")]
   pub fn unique_index(py: Python, n: usize) -> Py<PyArray1::<i64>> {
@@ -106,15 +126,10 @@ fn neworder(py: Python, m: &PyModule) -> PyResult<()> {
     res.to_owned()
   }
 
-  #[pyfn(m, "log")]
-  pub fn log_py(py: Python, x: PyObject) -> PyResult<()> {
-    let a = x.as_ref(py);
-    log_impl("py", env::rank(), env::size(), &a.to_string());
-    Ok(())
-  }
+  m.add_submodule(df)?;
 
   m.add_class::<Model>()?;
-  m.add_class::<Timeline>()?;
+
   m.add_class::<MonteCarlo>()?;
 
   match py.run("import mpi4py.MPI", None, None) {
@@ -123,14 +138,14 @@ fn neworder(py: Python, m: &PyModule) -> PyResult<()> {
       env::set_size(py.eval("MPI.COMM_WORLD.Get_size()", None, None)?.extract::<i32>()?);
     },
     Err(_) => {
+      env::set_rank(0);
+      env::set_size(1);
       // TODO work out whats going wrong here
       // >>> import neworder as no
       // Traceback (most recent call last):
       //   File "<stdin>", line 1, in <module>
       // TypeError: 'tuple' object is not callable
-      //PyErr::warn(py, &pyo3::types::PyTuple::empty(py), "mpi4py module not found, assuming serial mode", 0)?;
-      env::set_rank(0);
-      env::set_size(1);
+      //PyErr::warn(py, PyAny::new(), "mpi4py module not found, assuming serial mode", 0)?;
       log_impl("no", 0, 1, "mpi4py module not found, assuming serial mode");
     }
   }

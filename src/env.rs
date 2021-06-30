@@ -10,11 +10,6 @@ static SIZE: AtomicI32 = AtomicI32::new(-1);
 
 static UNIQUE_INDEX: AtomicI64 = AtomicI64::new(-1);
 
-pub fn version() -> &'static str {
-  // TODO how to get version from VERSION, not Cargo.toml
-  env!("CARGO_PKG_VERSION")
-}
-
 pub fn verbose(v: bool) {
   VERBOSE.store(v, Ordering::Relaxed);
 }

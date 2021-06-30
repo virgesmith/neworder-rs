@@ -12,6 +12,7 @@ use std::cmp;
 
 
 #[pyclass]
+#[derive(Clone)]
 pub struct MonteCarlo {
   // seed
   seed: u32,

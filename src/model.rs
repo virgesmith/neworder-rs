@@ -22,11 +22,12 @@ use crate::montecarlo::MonteCarlo;
 // .def("checkpoint", &no::Model::checkpoint);
 
 #[pyclass(subclass)]
+#[derive(Clone)]
 pub struct Model {
   #[pyo3(get)]
-  timeline: Timeline,
-  //#[pyo3(get)]
-  mc: MonteCarlo
+  pub timeline: Timeline,
+  #[pyo3(get)]
+  pub mc: MonteCarlo
   //test: u32
 }
 
@@ -40,35 +41,8 @@ impl Model {
     Model{ timeline, mc: MonteCarlo::new(seed) }
   }
 
-
-  // #[getter]
-  // fn test(&self, py: Python) -> PyResult<&u32> {
-  //   PyCell::new(py, self.test).borrow()
-  // }
-
-  // fn timeline(&self, py: Python) -> &PyCell<Timeline> {
-  //   let cell: &PyCell<Timeline> = PyCell::new(py, self.timeline).unwrap();
-  //   cell//Ok(Py<Timeline>(self.timeline).as_ref())
-  // }
-
-  // fn timeline(self, py: Python) -> PyResult<PyObject> {
-  //   Ok(PyRef::new(py, self.timeline_))
-  // }
-
-  // fn timeline(&self, py: Python) -> PyResult<Py<&Timeline>> {
-  //   Py::new(py, &self.timeline_)
-  // }
-
-  // fn timeline(&self) -> PyResult<PyRef<Timeline>> {
-  //     Ok(&self.timeline_)
-  // }
-
-  // the trait `pyo3::callback::IntoPyCallbackOutput<_>` is not implemented for `std::result::Result<&montecarlo::MonteCarlo, pyo3::PyErr>`
-  // fn mc(&self) -> PyResult<&MonteCarlo> {
-  //   Ok(&self.mc)
-  // }
-
   fn modify(&self, _r: i32) -> PyResult<()> {
+    neworder::log("no-op Model::modify()");
     Ok(())
   }
 
@@ -86,3 +60,5 @@ impl Model {
   }
 
 }
+
+
